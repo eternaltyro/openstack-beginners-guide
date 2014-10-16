@@ -1,0 +1,1415 @@
+<?xml version="1.0" encoding="UTF-8"?><chapter xmlns:db="http://docbook.org/ns/docbook" xmlns="http://docbook.org/ns/docbook" xml:id="Installation_and_configuration-d1e385" version="5.0" xml:base="Installation.xml">
+ <title>Installation and Configuration</title>
+<section xml:id="Introduction-d1e390">
+<title>Introduction</title>
+<para>The following section describes how to set up a minimal cloud infrastructure based on OpenStack using 3 machines. These machines are referred to in this and subsequent chapters as Server1, Server2 and Client1. Server1 runs all the components of Nova, Glance, Swift, Keystone, Neutron, Cinder and Horizon (OpenStack Dashboard). Server2 runs only nova-compute and neutron-openvswitch-agent. Since OpenStack components follow a shared-nothing policy, each component or any group of components can be installed on any server.</para>
+<para>Client1 is not a required component. In our sample setup, it is used for bundling images, as a client to the web interface and to run OpenStack commands to manage the infrastructure. Having this client ensures that you do not need to meddle with the servers for tasks such as bundling. Also, bundling of Desktop Systems including Windows will require a GUI and it is better to have a dedicated machine for this purpose. We would recommend this machine to be VT-Enabled so that KVM can be run which allows launching of VMs during image creation for bundling.</para>
+<para>The installation steps use certain specifics such as host names/IP addresses etc. Modify them to suit your environment before using them. The following table summarizes these specifics.</para>
+<table xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:svg="http://www.w3.org/2000/svg" xmlns:html="http://www.w3.org/1999/xhtml" frame="all">
+<title>Configuration</title>
+<tgroup cols="4">
+<thead>
+<row>
+<entry/>
+<entry>Server1</entry>
+<entry>Server2</entry>
+<entry>Client1</entry>
+</row>
+</thead>
+<tbody>
+<row>
+<entry>Functionality</entry>
+<entry>All components of OpenStack including nova-compute</entry>
+<entry>nova-compute and neutron-plugin-openvswitch-agent</entry>
+<entry>Client tools</entry>
+</row>
+<row>
+<entry>Network Interfaces</entry>
+<entry>eth0 - Public N/W, eth1 - Private N/W</entry>
+<entry>eth0 - Public N/W, eth1 - Private N/W</entry>
+<entry>eth0 - Public N/W</entry>
+</row>
+<row>
+<entry>IP addresses</entry>
+<entry>eth0 - 10.10.10.2, eth1 - 192.168.3.2</entry>
+<entry>eth0 - 10.10.10.3, eth1 - 192.168.3.3</entry>
+<entry>eth0 - 10.10.10.4</entry>
+</row>
+<row>
+<entry>Hostname</entry>
+<entry>server1.example.com</entry>
+<entry>server2.example.com</entry>
+<entry>client.example.com</entry>
+</row>
+<row>
+<entry>DNS servers</entry>
+<entry>8.8.8.8</entry>
+<entry>8.8.8.8</entry>
+<entry>8.8.8.8</entry>
+</row>
+<row>
+<entry>Gateway IP</entry>
+<entry>10.10.10.1</entry>
+<entry>10.10.10.1</entry>
+<entry>10.10.10.1</entry>
+</row>
+</tbody>
+</tgroup>
+</table>
+<para>
+<mediaobject>
+ <imageobject role="fo">
+  <imagedata fileref="images/setup.png"
+   format="PNG" scale="50"/>
+ </imageobject>
+ <imageobject role="html">
+  <imagedata fileref="images/setuphtml.png"
+   format="PNG" />
+ </imageobject>
+</mediaobject>
+</para>
+</section>
+<section xml:id="Server1-d1e537">
+<title>Server1</title>
+ <para>As shown in the figure above, Server1 contains all Nova services including nova-compute, Cinder, Neutron, Glance, Swift, Keystone and Horizon. It contains two network interface cards (NICs).</para>
+<section xml:id="Base_OS-d1e542">
+<title>Base OS</title>
+<para>Install 64 bit version of Ubuntu server 14.04 keeping the following configurations in mind.</para>
+<itemizedlist>
+<listitem><para>Create the first user with the name 'localadmin' .</para></listitem>
+<listitem><para>Installation lets you setup the IP address for the first interface i.e. eth0. Set the IP address details.</para></listitem>
+<listitem><para>During installation select only Openssh-server in the packages menu.</para></listitem>
+</itemizedlist>
+<para>We will also be running cinder-volume on this server and it is ideal to have a dedicated partition for the use of cinder-volume. So, ensure that you choose manual partitioning scheme while installing Ubuntu Server and create a dedicated partition with adequate amount of space for this purpose. We have referred to this partition in the rest of the chapter as /dev/sda6. You can substitute the correct device name of this dedicated partition based on your local setup while following the instructions. Also ensure that the partition type is set as Linux LVM (8e) using fdisk either during install or immediately after installation is over. If you also plan to use a dedicated partition as Swift backend, create another partition for this purpose and follow the instructions in "Swift Installation" section below.</para>
+<para>Update the machine using the following commands.</para>
+<programlisting>apt-get update</programlisting>
+<programlisting>apt-get upgrade</programlisting>
+<para>Install vlan and bridge-utils</para>
+<programlisting>apt-get install vlan bridge-utils</programlisting>
+<para>Edit the following lines in the file /etc/sysctl.conf</para>
+<programlisting>
+net.ipv4.ip_forward=1
+net.ipv4.conf.all.rp_filter=0
+net.ipv4.conf.default.rp_filter=0
+</programlisting>
+<para>Reboot the server and login as the admin user(localadmin) created during the OS installation.</para>
+</section>
+<section xml:id="Network_Configuration-d1e591">
+<title>Network Configuration</title>
+<para>Edit the /etc/network/interfaces file so as to looks like this:</para>
+<programlisting>
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet static
+		address 10.10.10.2
+		netmask 255.255.255.0
+		broadcast 10.10.10.255
+		gateway 10.10.10.1
+		dns-nameservers 10.10.8.3
+
+auto eth1
+iface eth1 inet static
+		address 192.168.3.2
+		netmask 255.255.255.0
+		network 192.168.3.0
+		broadcast 192.168.3.255
+</programlisting>
+<para>Restart the network now</para>
+<programlisting>/etc/init.d/networking restart</programlisting>
+</section>
+<section xml:id="NTP_Server-d1e609">
+<title>NTP Server</title>
+<para>Install NTP package. This server is going to act as an NTP server for the nodes. The time on all components of OpenStack will have to be in sync. We can run NTP server on this and have other components sync to it.</para>
+<programlisting>apt-get install ntp</programlisting>
+<para>Open the file /etc/ntp.conf and add the following lines to make sure that the time of the server is in sync with an external server and in case Internet connectivity is down, NTP server uses its own hardware clock as the fallback.</para>
+<programlisting>
+server ntp.ubuntu.com
+server 127.127.1.0
+fudge 127.127.1.0 stratum 10
+</programlisting>
+<para>Restart NTP service to make the changes effective</para>
+<programlisting>/etc/init.d/ntp restart</programlisting>
+</section>
+<section xml:id="Rabbit_MQ-Server-dsb679">
+<title>RabbitMQ Server</title>
+<para>Install RabbitMQ Server</para>
+<programlisting>apt-get install rabbitmq-server</programlisting>
+</section>
+<section xml:id="MySQL_Server-d1e657"><title>MySQL</title>
+<section xml:id="MySQL-installation-d1e856">
+<title>Installation</title>
+<para>Install mysql-server and python-mysqldb package</para>
+<programlisting>apt-get install mysql-server python-mysqldb
+</programlisting>
+<para>Create the root password for mysql. The password here is "mygreatsecret"</para> 
+<para>Change the bind address from 127.0.0.1 to 0.0.0.0 in /etc/mysql/my.cnf and it will look like this:</para>
+<programlisting>bind-address = 0.0.0.0</programlisting>
+<para>Change the following lines under "[mysqld]"</para>
+<programlisting>
+collation-server = utf8_general_ci
+init-connect = 'SET NAMES utf8'
+character-set-server = utf8
+</programlisting>
+<para>Restart MySQL server to ensure that it starts listening on all interfaces.</para>
+<programlisting>restart mysql
+</programlisting>
+</section>
+<section xml:id="Creating_Databases-d1e921">
+<title>Creating Databases</title>
+<para>Create MySQL databases to be used with nova, glance and keystone.</para>
+<para>Create a database named nova.</para>
+<programlisting>mysql -uroot -pmygreatsecret -e 'CREATE DATABASE nova;'</programlisting>
+<para>Create a user named novadbadmin.</para>
+<programlisting>mysql -uroot -pmygreatsecret -e 'CREATE USER novadbadmin;'</programlisting>
+<para>Grant all privileges for novadbadmin on the database "nova".</para>
+<programlisting>mysql -uroot -pmygreatsecret -e "GRANT ALL PRIVILEGES ON nova.* TO 'novadbadmin'@'%';"</programlisting>
+<para>Create a password for the user "novadbadmin".</para>
+<programlisting>mysql -uroot -pmygreatsecret -e "SET PASSWORD FOR 'novadbadmin'@'%' = PASSWORD('novasecret');"</programlisting>
+<para>Create a database named glance.</para>
+<programlisting>mysql -uroot -pmygreatsecret -e 'CREATE DATABASE glance;'</programlisting>
+<para>Create a user named glancedbadmin.</para>
+<programlisting>mysql -uroot -pmygreatsecret -e 'CREATE USER glancedbadmin;'</programlisting>
+<para>Grant all privileges for glancedbadmin on the database "glance".</para>
+<programlisting>mysql -uroot -pmygreatsecret -e "GRANT ALL PRIVILEGES ON glance.* TO 'glancedbadmin'@'%';"</programlisting>
+<para>Create a password for the user "glancedbadmin".</para>
+<programlisting>mysql -uroot -pmygreatsecret -e "SET PASSWORD FOR 'glancedbadmin'@'%' = PASSWORD('glancesecret');"</programlisting>
+<para>Create a database named keystone.</para>
+<programlisting>mysql -uroot -pmygreatsecret -e 'CREATE DATABASE keystone;'</programlisting>
+<para>Create a user named keystonedbadmin.</para>
+<programlisting>mysql -uroot -pmygreatsecret -e 'CREATE USER keystonedbadmin;'</programlisting>
+<para>Grant all privileges for keystonedbadmin on the database "keystone".</para>
+<programlisting>mysql -uroot -pmygreatsecret -e "GRANT ALL PRIVILEGES ON keystone.* TO 'keystonedbadmin'@'%';"</programlisting>
+<para>Create a password for the user "keystonedbadmin".</para>
+<programlisting>mysql -uroot -pmygreatsecret -e "SET PASSWORD FOR 'keystonedbadmin'@'%' = PASSWORD('keystonesecret');"</programlisting>
+<para>Create a database named neutron.</para>
+<programlisting>mysql -uroot -pmygreatsecret -e 'CREATE DATABASE neutron;'</programlisting>
+<para>Create a user named neutrondbadmin.</para>
+<programlisting>mysql -uroot -pmygreatsecret -e 'CREATE USER neutrondbadmin;'</programlisting>
+<para>Grant all privileges for neutrondbadmin on the database "neutron".</para>
+<programlisting>mysql -uroot -pmygreatsecret -e "GRANT ALL PRIVILEGES ON neutron.* TO 'neutrondbadmin'@'%';"</programlisting>
+<para>Create a password for the user "neutrondbadmin".</para>
+<programlisting>mysql -uroot -pmygreatsecret -e "SET PASSWORD FOR 'neutrondbadmin'@'%' = PASSWORD('neutronsecret');"</programlisting>
+<para>Create a database named cinder.</para>
+<programlisting>mysql -uroot -pmygreatsecret -e 'CREATE DATABASE cinder;'</programlisting>
+<para>Create a user named cinderdbadmin.</para>
+<programlisting>mysql -uroot -pmygreatsecret -e 'CREATE USER cinderdbadmin;'</programlisting>
+<para>Grant all privileges for cinderdbadmin on the database "cinder".</para>
+<programlisting>mysql -uroot -pmygreatsecret -e "GRANT ALL PRIVILEGES ON cinder.* TO 'cinderdbadmin'@'%';"</programlisting>
+<para>Create a password for the user "cinderdbadmin".</para>
+<programlisting>mysql -uroot -pmygreatsecret -e "SET PASSWORD FOR 'cinderdbadmin'@'%' = PASSWORD('cindersecret');"</programlisting>
+</section>
+</section>
+
+<section xml:id="Keystone-d1e456">
+<title>Keystone</title>
+<para>Keystone is the identity service used by OpenStack. Install Keystone using the following command.</para>
+<programlisting>apt-get install keystone python-keystone python-keystoneclient
+</programlisting>
+<para>Open /etc/keystone/keystone.conf, uncomment and change the line</para>
+<programlisting>#admin_token = ADMIN</programlisting>
+<para>so that it looks like</para>
+<programlisting>admin_token = admin</programlisting>
+<para>(We have used 'admin' as the token in this book.)</para>
+<para>Since MySQL database is used to store keystone configuration, edit the following line in /etc/keystone/keystone.conf from</para>
+<programlisting>connection = sqlite:////var/lib/keystone/keystone.db</programlisting>
+<para>to</para>
+<programlisting>connection = mysql://keystonedbadmin:keystonesecret@10.10.10.2/keystone</programlisting>
+<para>Restart Keystone by issuing this command:</para>
+<programlisting>service keystone restart</programlisting>
+<para>To synchronize the database, execute the following command:</para>
+<programlisting>keystone-manage db_sync</programlisting>
+<para>Now we need export some environment variables which are required frequently while working with OpenStack.</para>
+<programlisting>
+export SERVICE_ENDPOINT="http://localhost:35357/v2.0"
+export SERVICE_TOKEN=admin
+</programlisting>
+<para>You can also add these variables to ~/.bashrc, so that you need not have to export them everytime.</para>
+<section xml:id="Creating_Keystone_Tenants-d1e458">
+<title>Creating Tenants</title>
+<para>Create the tenants by executing the following commands. In this case, we are creating two tenants - admin and service.</para> 
+<programlisting>
+keystone tenant-create --name admin
+keystone tenant-create --name service
+</programlisting>
+</section>
+<section xml:id="Creating_Keystone_Users-d1e459">
+<title>Creating Users</title>
+<para>Create the users by executing the following commands. In this case, we are creating four users - admin, nova, glance and swift</para>
+<programlisting>
+keystone user-create --name admin --pass admin --email admin@foobar.com 
+keystone user-create --name nova --pass nova --email nova@foobar.com
+keystone user-create --name glance --pass glance --email glance@foobar.com
+keystone user-create --name swift --pass swift --email swift@foobar.com
+keystone user-create --name=neutron --pass=neutron --email=neutron@foobar.com
+keystone user-create --name=cinder --pass=cinder --email=cinder@foobar.com
+</programlisting>
+</section>
+<section xml:id="Creating_Keystone_Roles-d1e460">
+<title>Creating Roles</title>
+<para>Create the roles by executing the following commands. In this case, we are creating two roles - admin and Member.</para>
+<programlisting>
+keystone role-create --name admin
+keystone role-create --name Member
+</programlisting>
+</section>
+<section xml:id="Adding_Roles_to_Users-d1e465">
+<title>Adding Roles to Users in Tenants</title>
+<para>Now we add roles to the users that have been created. A role to a specific user in a specific tenant can be assigned with the following command:</para>
+<para>To add a role of 'admin' to the user 'admin' of the tenant 'admin'.</para>
+<programlisting>
+keystone user-role-add --user=admin --tenant=admin --role=admin
+</programlisting>
+<para>A few more examples are as follows:</para>
+<programlisting>
+keystone user-role-add --user nova --role admin --tenant service
+keystone user-role-add --user glance --role admin --tenant service
+keystone user-role-add --user swift --role admin --tenant service
+keystone user-role-add --user neutron --role admin --tenant service
+keystone user-role-add --user cinder --role admin --tenant service
+</programlisting>
+</section>
+<section xml:id="Creating_Services-d1e467">
+<title>Creating Services</title>
+<para>Now we need to create the required services which the users can authenticate with. nova, glance, swift, keystone, neutron and cinder are some of the services that we create.</para>
+<programlisting>
+keystone service-create --name nova --type compute --description 'OpenStack Compute Service'
+keystone service-create --name cinder --type volume --description 'OpenStack Volume Service'
+keystone service-create --name=cinderv2 --type=volumev2 --description="OpenStack Block Storage v2"
+keystone service-create --name glance --type image --description 'OpenStack Image Service'
+keystone service-create --name swift --type object-store --description 'OpenStack Storage Service'
+keystone service-create --name keystone --type identity --description 'OpenStack Identity Service'
+keystone service-create --name neutron --type network --description 'OpenStack Networking Service'
+</programlisting>
+</section>
+<section xml:id="Creating_Endpoints-d1e469">
+<title>Creating Endpoints</title>
+<para>Create endpoints for each of the services that have been created above.</para>
+<para>For creating an endpoint for nova-compute, execute the following command</para>
+<programlisting>
+keystone endpoint-create --service=nova --publicurl=http://10.10.10.2:8774/v2/%\(tenant_id\)s --internalurl=http://10.10.10.2:8774/v2/%\(tenant_id\)s --adminurl=http://10.10.10.2:8774/v2/%\(tenant_id\)s
+</programlisting>
+<para>For creating an endpoints for Cinder, execute the following command</para>
+<programlisting>
+keystone endpoint-create --service=cinder --publicurl=http://10.10.10.2:8776/v1/%\(tenant_id\)s --internalurl=http://10.10.10.2:8776/v1/%\(tenant_id\)s --adminurl=http://10.10.10.2:8776/v1/%\(tenant_id\)s
+keystone endpoint-create --service=cinderv2 --publicurl=http://10.10.10.2:8776/v2/%\(tenant_id\)s --internalurl=http://10.10.10.2:8776/v2/%\(tenant_id\)s --adminurl=http://10.10.10.2:8776/v2/%\(tenant_id\)s
+</programlisting>
+<para>For creating an endpoint for glance, execute the following command</para>
+<programlisting>
+keystone endpoint-create --service=glance --publicurl=http://10.10.10.2:9292 --adminurl=http://10.10.10.2:9292 --internalurl=http://10.10.10.2:9292
+</programlisting>
+<para>For creating an endpoint for swift, execute the following command:</para>
+<programlisting>
+keystone endpoint-create --service=swift --publicurl='http://10.10.10.2:8080/v1/AUTH_%(tenant_id)s' --internalurl='http://10.10.10.2:8080/v1/AUTH_%(tenant_id)s' --adminurl='http://10.10.10.2:8080/v1'
+</programlisting>
+<para>For creating an endpoint for keystone, execute the following command</para>
+<programlisting>
+keystone endpoint-create --service=keystone --publicurl http://10.10.10.2:5000/v2.0 --internalurl http://10.10.10.2:5000/v2.0 --adminurl http://10.10.10.2:35357/v2.0
+</programlisting>
+<para>For creating an endpoint for neutron, execute the following command</para>
+<programlisting>
+keystone endpoint-create --service=neutron --publicurl http://10.10.10.2:9696 --internalurl http://10.10.10.2:9696 --adminurl http://10.10.10.2:9696
+</programlisting>
+</section>
+</section>
+
+<section xml:id="Glance-d1a732">
+<title>Glance</title>    
+<para>Install glance using the following command</para>
+<programlisting>
+apt-get install glance
+</programlisting>
+<section xml:id="Glance_Config-d1a734">
+<title>Glance Configuration</title>
+<para>Glance uses SQLite by default. MySQL and PostgreSQL can also be configured to work with Glance.</para>
+<para>Open /etc/glance/glance-api.conf and add the make the following changes</para>
+<para>Edit the line which contains the option "sqlite_db=" to this</para>
+<programlisting>connection = mysql://glancedbadmin:glancesecret@10.10.10.2/glance</programlisting>
+<para>Edit the following lines so it looks like this. The admin_tenant_name will be 'service', admin_user will be 'glance' and admin_password is 'glance'.</para>
+<para>After editing, the lines should be as follows:</para>
+<programlisting>
+admin_tenant_name = service
+admin_user = glance
+admin_password = glance
+</programlisting>
+<para>In order to tell glance to use keystone for authentication, add the following lines at the section "[paste_deploy]" to</para>
+<programlisting>
+flavor = keystone
+</programlisting>
+
+<para>Open /etc/glance/glance-registry.conf and add the make the following changes</para>
+<para>Edit the line which contains the option "sqlite_db=" to this</para>
+<programlisting>connection = mysql://glancedbadmin:glancesecret@10.10.10.2/glance</programlisting>
+<para>Edit the following lines so it looks like this. The admin_tenant_name will be 'service', admin_user will be 'glance' and admin_password is 'glance'.</para>
+<para>After editing, the lines should be as follows:</para>
+<programlisting>
+admin_tenant_name = service
+admin_user = glance
+admin_password = glance
+</programlisting>
+<para>In order to tell glance to use keystone for authentication, add the following lines at the section "[paste_deploy]" to</para>
+<programlisting>
+flavor = keystone
+</programlisting>
+
+<para>Create glance schema in the MySQL database.:</para>
+<programlisting>
+glance-manage db_sync
+</programlisting>
+<para>Restart glance-api and glance-registry after making the above changes.</para>
+<programlisting>
+restart glance-api
+restart glance-registry
+</programlisting>
+<para>Export the following environment variables.</para>
+<programlisting>
+export SERVICE_TOKEN=admin
+export OS_TENANT_NAME=admin
+export OS_USERNAME=admin
+export OS_PASSWORD=admin
+export OS_AUTH_URL="http://localhost:5000/v2.0/"
+export SERVICE_ENDPOINT=http://localhost:35357/v2.0
+</programlisting>
+<para>Alternatively, you can add these variables to ~/.bashrc.</para>
+<para>To test if glance is setup correctly execute the following commands.The following command downloads a pre-built image from the web and uploads it to Glance</para>
+<programlisting>
+glance image-create --name Cirros --is-public true --container-format bare --disk-format qcow2 --location https://launchpad.net/cirros/trunk/0.3.0/+download/cirros-0.3.0-x86_64-disk.img
+glance index
+</programlisting>
+<para>we can also compile our own images and upload them to glance. This has been explained in detail in "Image Management" chapter.</para>
+</section>
+</section>
+
+<section xml:id="Nova-d1a736">
+<title>Nova</title>
+<para>Install nova using the following commands:</para>
+<programlisting>apt-get install -y nova-api nova-cert nova-conductor nova-consoleauth nova-novncproxy nova-scheduler python-novaclient nova-compute nova-console</programlisting>
+<section xml:id="Nova_Conf-d2s738">
+<title>Nova Configuration</title>
+<para>Edit the /etc/nova/nova.conf file to look like this.</para>
+<programlisting>
+[DEFAULT]
+logdir=/var/log/nova
+state_path=/var/lib/nova
+lock_path=/var/lock/nova
+force_dhcp_release=True
+iscsi_helper=tgtadm
+libvirt_use_virtio_for_bridges=True
+connection_type=libvirt
+root_helper=sudo nova-rootwrap /etc/nova/rootwrap.conf
+verbose=True
+rpc_backend = nova.rpc.impl_kombu
+rabbit_host = 10.10.10.2
+my_ip = 10.10.10.2
+vncserver_listen = 10.10.10.2
+vncserver_proxyclient_address = 10.10.10.2
+novncproxy_base_url=http://10.10.10.2:6080/vnc_auto.html
+glance_host = 10.10.10.2
+auth_strategy=keystone
+
+network_api_class=nova.network.neutronv2.api.API
+neutron_url=http://10.10.10.2:9696
+neutron_auth_strategy=keystone
+neutron_admin_tenant_name=service
+neutron_admin_username=neutron
+neutron_admin_password=neutron
+neutron_metadata_proxy_shared_secret=openstack
+neutron_admin_auth_url=http://10.10.10.2:35357/v2.0
+linuxnet_interface_driver = nova.network.linux_net.LinuxOVSInterfaceDriver
+firewall_driver=nova.virt.firewall.NoopFirewallDriver
+security_group_api=neutron
+
+vif_plugging_is_fatal: false
+vif_plugging_timeout: 0
+
+[database]
+connection = mysql://novadbadmin:novasecret@10.10.10.2/nova
+
+[keystone_authtoken]
+auth_uri = http://10.10.10.2:5000
+auth_host = 10.10.10.2
+auth_port = 35357
+auth_protocol = http
+admin_tenant_name = service
+admin_user = nova
+admin_password = nova
+</programlisting>
+<para>Create a schema for nova in the database</para>
+<programlisting>nova-manage db sync</programlisting>
+<para>Restart nova services</para>
+<programlisting>
+service nova-api restart ;service nova-cert restart; service nova-consoleauth restart ;service nova-scheduler restart;service nova-conductor restart; service nova-novncproxy restart; service nova-compute restart; service nova-console restart
+</programlisting>
+<para>To test if nova is setup correctly, execute the following command.</para>
+<programlisting>
+nova-manage service list
+</programlisting>
+<para>The output should be like</para>
+<programlisting>
+Binary           Host           Zone             Status     State Updated_At
+nova-consoleauth server1        internal         enabled    :-)   2014-04-19 08:55:13
+nova-conductor   server1        internal         enabled    :-)   2014-04-19 08:55:14
+nova-cert        server1        internal         enabled    :-)   2014-04-19 08:55:13
+nova-scheduler   server1        internal         enabled    :-)   2014-04-19 08:55:13
+nova-compute     server1        nova             enabled    :-)   2014-04-19 08:55:14
+nova-console     server1        internal         enabled    :-)   2014-04-19 08:55:14
+</programlisting>
+<para>If you see something like the above with all components happy, it means that the set up is ready to be used.</para>
+</section>
+</section>
+<section xml:id="Neutron-ed335">
+<title>Neutron</title> 
+<para>Neutron is the networking service of OpenStack. Lets see the steps involved in the installation of Neutron alonside other components.</para>
+<para>Install the Neutron services using the following command</para>>
+<programlisting>apt-get install -y neutron-server neutron-plugin-openvswitch neutron-plugin-openvswitch-agent neutron-common neutron-dhcp-agent neutron-l3-agent neutron-metadata-agent openvswitch-switch</programlisting>
+<section xml:id="Neutron_config-re439">
+<title>Neutron Configuration</title>
+<para>Remove all the lines from /etc/neutron/neutron.conf and add the following lines</para>
+<programlisting>
+[DEFAULT]
+core_plugin = ml2
+notification_driver=neutron.openstack.common.notifier.rpc_notifier
+verbose=True
+rabbit_host=10.10.10.2
+rpc_backend=neutron.openstack.common.rpc.impl_kombu
+service_plugins=router
+allow_overlapping_ips=True
+auth_strategy=keystone
+neutron_metadata_proxy_shared_secret=openstack
+service_neutron_metadata_proxy=True
+notify_nova_on_port_data_changes=True
+notify_nova_on_port_status_changes=True
+nova_admin_auth_url=http://10.10.10.2:35357/v2.0
+nova_admin_tenant_id=service
+nova_url=http://10.10.10.2:8774/v2
+nova_admin_username=nova
+nova_admin_password=nova
+
+
+[keystone_authtoken]
+auth_host = 10.10.10.2
+auth_port = 35357
+auth_protocol = http
+admin_tenant_name = service
+admin_user = neutron
+admin_password = neutron
+signing_dir = $state_path/keystone-signing
+rpc_backend = neutron.openstack.common.rpc.impl_kombu
+rabbit_host = 10.10.10.2
+rabbit_port = 5672
+
+notify_nova_on_port_status_changes = True
+notify_nova_on_port_data_changes = True
+nova_url = http://10.10.10.2:8774
+nova_admin_username = nova
+nova_admin_tenant_id = 
+nova_admin_password = nova
+nova_admin_auth_url = http://10.10.10.2:35357/v2.0
+
+[database]
+connection = mysql://neutrondbadmin:neutronsecret@10.10.10.2/neutron
+
+[agent]
+root_helper = sudo /usr/bin/neutron-rootwrap /etc/neutron/rootwrap.conf
+</programlisting>
+<para>Open /etc/neutron/plugins/ml2/ml2_conf.ini and make the following changes</para>
+<programlisting>
+[ml2]
+type_drivers=flat,vlan
+tenant_network_types=vlan,flat
+mechanism_drivers=openvswitch
+[ml2_type_flat]
+flat_networks=External
+[ml2_type_vlan]
+network_vlan_ranges=Intnet1:100:200
+[ml2_type_gre]
+[ml2_type_vxlan]
+[securitygroup]
+firewall_driver=neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
+enable_security_group=True
+[ovs]
+bridge_mappings=External:br-ex,Intnet1:br-eth1
+</programlisting>
+<para>We have created two physical networks one as a flat network and the other as a vlan network with vlan ranging from 100 to 200. We have mapped External network to br-ex and Intnet1 to br-eth1.Now Create bridges</para>
+<programlisting>
+ovs-vsctl add-br br-int
+ovs-vsctl add-br br-eth1
+ovs-vsctl add-br br-ex
+ovs-vsctl add-port br-eth1 eth1
+ovs-vsctl add-port br-ex eth2
+</programlisting>
+<para>Edit /etc/neutron/metadata_agent.ini to look like this</para>
+<programlisting>
+[DEFAULT]
+auth_url = http://10.0.0.1:5000/v2.0
+auth_region = RegionOne
+admin_tenant_name = service
+admin_user = neutron
+admin_password = neutron
+metadata_proxy_shared_secret = metadata_pass
+</programlisting>
+<para>Edit /etc/neutron/dhcp_agent.ini to look like this</para>
+<programlisting>
+[DEFAULT]
+interface_driver = neutron.agent.linux.interface.OVSInterfaceDriver
+dhcp_driver = neutron.agent.linux.dhcp.Dnsmasq
+use_namespaces = True
+</programlisting>
+<para>Edit /etc/neutron/l3_agent.ini to look like this</para>
+<programlisting>
+[DEFAULT]
+interface_driver = neutron.agent.linux.interface.OVSInterfaceDriver
+use_namespaces = True
+</programlisting>
+<para>Restart all Neutron services</para>
+<programlisting>
+service neutron-server restart; service neutron-plugin-openvswitch-agent restart;service neutron-metadata-agent restart; service neutron-dhcp-agent restart; service neutron-l3-agent restart
+</programlisting>
+<para>Check if the services are running. Run the following command</para>
+<programlisting>
+neutron agent-list
+</programlisting>
+<para>The output should be like this</para>
+<programlisting>
++--------------------------------------+------------------+--------+-------+--------------+
+| id                                   |agent_type        | host   | alive |admin_state_up|
++--------------------------------------+------------------+--------+-------+--------------+
+| 01a5e70c-324a-4183-9652-6cc0e5c98499 |Metadata agent    | ubuntu | :-)   |True          |
+| 17b9440b-50eb-48b7-80a8-a5bbabc47805 |DHCP agent        | ubuntu | :-)   |True          |
+| c30869f2-aaca-4118-829d-a28c63a27aa4 |L3 agent          | ubuntu | :-)   |True          |
+| f846440e-4ca6-4120-abe1-ffddaf1ab555 |Open vSwitch agent| ubuntu | :-)   |True          |
++--------------------------------------+------------------+--------+-------+--------------+
+</programlisting>
+<para>To know more about managing Neutron,refer to network management chapter.</para>
+</section>
+</section>
+<section xml:id="Cinder-db432">
+<title>Cinder</title>
+<para>Cinder is the volume service of OpenStack. In this section lets see how to install Cinder with other components of OpenStack.</para>    
+<para>Install Cinder services using the following command</para>
+<programlisting>
+apt-get install cinder-api cinder-scheduler cinder-volume lvm2
+</programlisting>
+<section xml:id="Cinder_Config-dse34">
+<title>Cinder configuration</title>
+<para>Remove all the lines from the file /etc/cinder/cinder.conf and add the following lines</para>
+<programlisting>
+[DEFAULT]
+rootwrap_config = /etc/cinder/rootwrap.conf
+api_paste_confg = /etc/cinder/api-paste.ini
+iscsi_helper = tgtadm
+volume_name_template = volume-%s
+volume_group = cinder-volumes
+verbose = True
+auth_strategy = keystone
+state_path = /var/lib/cinder
+lock_path = /var/lock/cinder
+volumes_dir = /var/lib/cinder/volumes
+rpc_backend = cinder.openstack.common.rpc.impl_kombu
+rabbit_host = 10.10.10.2
+rabbit_port = 5672
+rabbit_userid = guest
+glance_host = 10.10.10.2
+
+[database]
+connection = mysql://cinderdbadmin:cindersecret@10.10.10.2/cinder
+
+[keystone_authtoken]
+auth_uri = http://10.10.10.2:5000
+auth_host = 10.10.10.2
+auth_port = 35357
+auth_protocol = http
+admin_tenant_name = service
+admin_user = cinder
+admin_password = cinder
+</programlisting>
+<para>Create Cinder schema in the MySQL database.:</para>
+<programlisting>
+cinder-manage db sync
+</programlisting>
+<para>Cinder needs a LVM volume-group named "cinder-volumes". To create "cinder-volumes" use the following commands</para>
+<para>Create a physical volume on the dedicated partition /dev/sdb</para>
+<programlisting>pvcreate /dev/sdb</programlisting>
+<para>Create volume group named “cinder-volumes”</para>
+<programlisting>vgcreate cinder-volumes /dev/sdb</programlisting>
+<para>Restart all the Cinder services</para>
+<programlisting>service cinder-scheduler restart;service cinder-api restart;service cinder-volume restart;service tgt restart</programlisting>
+<para>Now to check the Cinder setup, use the following command</para>
+<programlisting>cinder-manage service list</programlisting>
+<para>The output should be like</para>
+<programlisting>
+Binary           Host            Zone             Status     State Updated At
+cinder-scheduler ubuntu          nova             enabled    :-)   2014-10-11 11:48:47
+cinder-volume    ubuntu          nova             enabled    :-)   2014-10-11 11:48:38
+</programlisting>
+<para>Try creating a new volume</para>
+<programlisting>cinder create --display-name myVolume 1</programlisting>
+<para>List the volume you created now</para>
+<programlisting>cinder list</programlisting>
+<para>The output should be like</para>
+<programlisting>
++---------------+----------+------------+----+-----------+--------+-----------+
+|    ID         |  Status  |Display Name|Size|Volume Type|Bootable|Attached to|
++---------------+----------+------------+----+-----------+--------+-----------+
+|xxx-xxx-xxx-xxx|available |  myVolume  |  1 |    None   | false  |           |
++---------------+----------+------------+----+-----------+--------+-----------+
+</programlisting>
+<para>To know more about managing volumes,refer to storage management chapter.</para>
+</section>
+</section>
+
+<section xml:id="Swift-d2s742">
+<title>Swift</title>
+<section xml:id="Swift_Installation-d2s744">
+<title>Swift Installation</title>
+<para>The primary components are the proxy, account, container and object servers.</para>
+<programlisting>
+apt-get install swift swift-proxy swift-account swift-container swift-object memcached
+</programlisting>
+<para>Other components that might be xfsprogs (for dealing with XFS filesystem), python.pastedeploy (for keystone access), curl (to test swift).</para>
+<programlisting>
+apt-get install xfsprogs curl python-pastedeploy
+</programlisting>
+</section>
+<section xml:id="Swift_Storage_Backends-d2s746">
+<title>Swift Storage Backends</title>
+<para>There are two methods one can try to create/prepare the storage backend. One is to use an existing partition/volume as the storage device. The other is to create a loopback file and use it as the storage device. Use the appropriate method as per your setup.</para>
+<section xml:id="Partition_as_Storage-d2s748">
+<title>Partition as a storage device</title>
+<para>If you have a physical partition (e.g. /dev/sdb3), all you have to do is format it to xfs filesystem using parted or fdisk and use it as the backend. You need to specify the mount point in /etc/fstab.</para>
+<programlisting>
+CAUTION: Replace /dev/sdb to your appropriate device. I'm assuming that there is an unused/un-formatted partition section in /dev/sdb
+</programlisting>
+<programlisting>
+fdisk /dev/sdb
+
+    Type n for new partition
+    Type e for extended partion
+    Choose appropriate partition number ( or go with the default )
+    Choose first and last sectors to set the hard disk size (or go with defaults)
+    Note that 83 is the partition type number for Linux
+    Type w to write changes to the disk 
+</programlisting>
+<para>This would have created a partition (something like /dev/sdb3) that we can now format to XFS filesystem. Do 'fdisk -l' in the terminal to view and verify the partion table. Find the partition Make sure that the one that you want to use is listed there. This would work only if you have xfsprogs installed.</para>
+<programlisting>
+mkfs.xfs -i size=1024 /dev/sdb3
+tune2fs -l /dev/sdb3 |grep -i inode
+</programlisting>
+<para>Create a directory /mnt/swift_backend that can be used as a mount point to the partion tha we created.</para>
+<programlisting>
+mkdir /mnt/swift_backend
+</programlisting>
+<para>Now edit /etc/fstab and append the following line to mount the partition automatically everytime the system restarts.</para>
+<programlisting>
+/dev/sdb3 /mnt/swift_backend xfs noatime,nodiratime,nobarrier,logbufs=8 0 0
+</programlisting>
+</section>
+<section xml:id="Loopback_File_as_Storage-d2s748">
+<title>Loopback File as a storage device</title>
+<para>We create a zero ﬁlled ﬁle for use as a loopback device for the Swift storage backend. Here we use the disk copy command to create a ﬁle named swift-disk and allocate a million 1KiB blocks (976.56 MiB) to it. So we have a loopback disk of approximately 1GiB. We can increase this size by modifying the seek value. The disk is then formated to XFS filesystem. The file command can be used to verify if it worked.</para>
+<programlisting>
+dd if=/dev/zero of=/srv/swift-disk bs=1024 count=0 seek=1000000
+mkfs.xfs -i size=1024 /srv/swift-disk
+/srv/swift-disk
+swift-disk1: SGI XFS filesystem data (blksz 4096, inosz 1024, v2 dirs)
+</programlisting>
+<para>Create a directory /mnt/swift_backend that can be used as a mount point to the partion tha we created.</para>
+<programlisting>
+mkdir /mnt/swift_backend
+</programlisting>
+<para>Make it mount on boot by appending this to /etc/fstab.</para>
+<programlisting>
+/srv/swift-disk /mnt/swift_backend xfs loop,noatime,nodiratime,nobarrier,logbufs=8 0 0
+</programlisting>
+</section>
+<section xml:id="Using_the_backend-d2s750">
+<title>Using the backend</title>
+<para>Now before mounting the backend that will be used, create some nodes to be used as storage devices and set ownership to 'swift' user and group.</para>
+<programlisting>
+mount /dev/sdb3 /mnt/swift_backend
+pushd /mnt/swift_backend
+mkdir node1 node2 node3 node4
+popd
+chown swift:swift /mnt/swift_backend/*
+for i in {1..4}; do sudo ln -s /mnt/swift_backend/node$i /srv/node$i; done;
+mkdir -p /etc/swift/account-server /etc/swift/container-server /etc/swift/object-server /srv/node1/device /srv/node2/device /srv/node3/device /srv/node4/device
+chown -R swift:swift /etc/swift /srv/node[1-4]/
+</programlisting>
+<para>Append the following lines in /etc/rc.local just before "exit 0";. This will be run everytime the system starts.</para>
+<programlisting>
+mkdir /run/swift
+chown swift:swift /run/swift
+</programlisting>
+</section>
+</section>
+<section xml:id="Configure_Rsync-d2s750">
+<title>Configure Rsync</title>
+<para>Rsync is responsible for maintaining object replicas. It is used by various swift services to maintain consistency of objects and perform updation operations. It is conﬁgured for all the storage nodes.</para>
+<para>Set RSYNC_ENABLE=true in /etc/default/rsync.</para>
+<para>Modify /etc/rsyncd.conf as follows:</para>
+<programlisting>
+# General stuff
+uid = swift
+gid = swift
+log file = /var/log/rsyncd.log
+pid file = /var/run/rsyncd.pid
+address = 127.0.0.1
+
+# Account Server replication settings
+
+[account6012]
+max connections = 25
+path = /srv/node1/
+read only = false
+lock file = /var/lock/account6012.lock
+
+[account6022]
+max connections = 25
+path = /srv/node2/
+read only = false
+lock file = /var/lock/account6022.lock
+
+[account6032]
+max connections = 25
+path = /srv/node3/
+read only = false
+lock file = /var/lock/account6032.lock
+
+[account6042]
+max connections = 25
+path = /srv/node4/
+read only = false
+lock file = /var/lock/account6042.lock
+
+# Container server replication settings
+
+[container6011]
+max connections = 25
+path = /srv/node1/
+read only = false
+lock file = /var/lock/container6011.lock
+
+[container6021]
+max connections = 25
+path = /srv/node2/
+read only = false
+lock file = /var/lock/container6021.lock
+
+[container6031]
+max connections = 25
+path = /srv/node3/
+read only = false
+lock file = /var/lock/container6031.lock
+
+[container6041]
+max connections = 25
+path = /srv/node4/
+read only = false
+lock file = /var/lock/container6041.lock
+
+# Object Server replication settings
+
+[object6010]
+max connections = 25
+path = /srv/node1/
+read only = false
+lock file = /var/lock/object6010.lock
+
+[object6020]
+max connections = 25
+path = /srv/node2/
+read only = false
+lock file = /var/lock/object6020.lock
+
+[object6030]
+max connections = 25
+path = /srv/node3/
+read only = false
+lock file = /var/lock/object6030.lock
+
+[object6040]
+max connections = 25
+path = /srv/node4/
+read only = false
+lock file = /var/lock/object6040.lock
+</programlisting>
+<para>Restart rsync.</para>
+<programlisting>
+service rsync restart
+</programlisting>
+</section>
+<section xml:id="Configure_Swift_Components-d2s752">
+<title>Configure Swift Components</title>
+<para>General server configuration options can be found in http://swift.openstack.org/deployment_guide.html. If the swift-doc package is installed it can also be viewed in the /usr/share/doc/swift-doc/html directory. Python uses paste.deploy to manage configuration. Default configuration options are set in the [DEFAULT] section, and any options specified there can be overridden in any of the other sections BUT ONLY BY USING THE SYNTAX set option_name = value.</para>
+<para>Here is a sample paste.deploy configuration for reference:</para>
+<programlisting>
+[DEFAULT]
+name1 = globalvalue
+name2 = globalvalue
+name3 = globalvalue
+set name4 = globalvalue
+
+[pipeline:main]
+pipeline = myapp
+
+[app:myapp]
+use = egg:mypkg#myapp
+name2 = localvalue
+set name3 = localvalue
+set name5 = localvalue
+name6 = localvalue
+</programlisting>
+<para>Create and edit /etc/swift/swift.conf and add the following lines to it:</para>
+<programlisting>
+[swift-hash]
+# random unique string that can never change (DO NOT LOSE). I'm using 03c9f48da2229770. 
+# od -t x8 -N 8 -A n &lt; /dev/random
+# The above command can be used to generate random a string.
+swift_hash_path_suffix = 03c9f48da2229770
+</programlisting>
+<para>You will need the random string when you add more nodes to the setup. So never lose the string.</para>
+<para>You can generate a random string by running the following command:</para>
+<programlisting>
+od -t x8 -N 8 -A n &lt; /dev/random
+</programlisting>
+<section xml:id="Configure_Swift_Proxy_Server-d2s752">
+<title>Configure Swift Proxy Server</title>
+<para>Proxy server acts as the gatekeeper to swift. It takes the responsibility of authenticating the user. Authentication verifies that a request actually comes from who it says it does. Authorization verifies the ‘who’ has access to the resource(s) the request wants. Authorization is done by identity services like keystone. Create and edit /etc/swift/proxy-server.conf and add the following lines.</para>
+<programlisting>
+[DEFAULT]
+bind_port = 8080
+user = swift
+[pipeline:main]
+pipeline = healthcheck cache authtoken keystoneauth proxy-server
+[app:proxy-server]
+use = egg:swift#proxy
+allow_account_management = true
+account_autocreate = true
+[filter:keystoneauth]
+use = egg:swift#keystoneauth
+operator_roles = Member,admin,swiftoperator
+[filter:authtoken]
+paste.filter_factory = keystoneclient.middleware.auth_token:filter_factory
+# Delaying the auth decision is required to support token-less
+# usage for anonymous referrers ('.r:*').
+delay_auth_decision = true
+# auth_* settings refer to the Keystone server
+auth_protocol = http
+auth_host = controller
+auth_port = 35357
+# the service tenant and swift username and password created in Keystone
+admin_tenant_name = service
+admin_user = swift
+admin_password = swift
+[filter:cache]
+use = egg:swift#memcache
+[filter:catch_errors]
+use = egg:swift#catch_errors
+[filter:healthcheck]
+use = egg:swift#healthcheck
+</programlisting>
+<para>Note: You can ﬁnd sample conﬁguration ﬁles at the "etc" directory in the source. Some documentation can be found under "/usr/share/doc/swift-doc/html" if you had installed the swift-doc package using apt-get.</para>
+</section>
+<section xml:id="Configure_Swift_Account_Server-d2s752">
+<title>Configure Swift Account Server</title>
+<para>The default swift account server configuration is /etc/swift/account-server.conf.</para>
+<programlisting>
+[DEFAULT]
+bind_ip = 0.0.0.0
+workers = 2
+
+[pipeline:main]
+pipeline = account-server
+
+[app:account-server]
+use = egg:swift#account
+
+[account-replicator]
+
+[account-auditor]
+
+[account-reaper]
+</programlisting>
+<para>Account server configuration files are also looked up under /etc/swift/account-server.conf. Here we can create several account server configuration files each of which would correspond to a device under /srv. The files can be named 1.conf, 2.conf and so on. Here are the contents of /etc/swift/account-server/1.conf:</para>
+<programlisting>
+[DEFAULT]
+devices = /srv/node1
+mount_check = false
+bind_port = 6012
+user = swift
+log_facility = LOG_LOCAL2
+
+[pipeline:main]
+pipeline = account-server
+
+[app:account-server]
+use = egg:swift#account
+
+[account-replicator]
+vm_test_mode = no
+
+[account-auditor]
+
+[account-reaper]
+</programlisting>
+<para>For the other devices, (/srv/node2, /srv/node3, /srv/node4), we create 2.conf, 3.conf and 4.conf. So we make three more copies of 1.conf and set unique bind ports for the rest of the nodes (6022, 6032 and 6042) and different local log values (LOG_LOCAL3, LOG_LOCAL4, LOG_LOCAL5).</para>
+</section>
+<section xml:id="Configure_Swift_Container_Server-d2s754">
+<title>Configure Swift Container Server</title>
+<para>The default swift container server configuration is /etc/swift/container-server.conf.</para>
+<programlisting>
+[DEFAULT]
+bind_ip = 0.0.0.0
+workers = 2
+
+[pipeline:main]
+pipeline = container-server
+
+[app:container-server]
+use = egg:swift#container
+
+[container-replicator]
+
+[container-updater]
+
+[container-auditor]
+</programlisting>
+<para>Container server configuration files are also looked up under /etc/swift/container-server.conf. Here we can create several container server configuration files each of which would correspond to a device under /srv. The files can be named 1.conf, 2.conf and so on. Here are the contents of /etc/swift/container-server/1.conf:</para>
+<programlisting>
+[DEFAULT]
+devices = /srv/node1
+mount_check = false
+bind_port = 6011
+user = swift
+log_facility = LOG_LOCAL2
+
+[pipeline:main]
+pipeline = container-server
+
+[app:container-server]
+use = egg:swift#container
+
+[container-replicator]
+vm_test_mode = no
+
+[container-updater]
+
+[container-auditor]
+[container-sync]
+</programlisting>
+<para>For the other devices, (/srv/node2, /srv/node3, /srv/node4), we create 2.conf, 3.conf and 4.conf. So we make three more copies of 1.conf and set unique bind ports for the rest of the nodes (6021, 6031 and 6041) and different local log values (LOG_LOCAL3, LOG_LOCAL4, LOG_LOCAL5).</para>
+</section>
+<section xml:id="Configure_Swift_Object_Server-d2s756">
+<title>Configure Swift Object Server</title>
+<para>The default swift object server configuration is /etc/swift/object-server.conf.</para>
+<programlisting>
+[DEFAULT]
+bind_ip = 0.0.0.0
+workers = 2
+
+[pipeline:main]
+pipeline = object-server
+
+[app:object-server]
+use = egg:swift#object
+
+[object-replicator]
+
+[object-updater]
+
+[object-auditor]
+</programlisting>
+<para>Object server configuration files are also looked up under /etc/swift/object-server.conf. Here we can create several object server configuration files each of which would correspond to a device under /srv. The files can be named 1.conf, 2.conf and so on. Here are the contents of /etc/swift/object-server/1.conf:</para>
+<programlisting>
+[DEFAULT]
+devices = /srv/node1
+mount_check = false
+bind_port = 6010
+user = swift
+log_facility = LOG_LOCAL2
+
+[pipeline:main]
+pipeline = object-server
+
+[app:object-server]
+use = egg:swift#object
+
+[object-replicator]
+vm_test_mode = no
+
+[object-updater]
+
+[object-auditor]
+</programlisting>
+<para>For the other devices, (/srv/node2, /srv/node3, /srv/node4), we create 2.conf, 3.conf and 4.conf. So we make three more copies of 1.conf and set unique bind ports for the rest of the nodes (6020, 6030 and 6040) and different local log values (LOG_LOCAL3, LOG_LOCAL4, LOG_LOCAL5).</para>
+</section>
+<section xml:id="Configure_Swift_Rings-d2s758">
+<title>Configure Swift Rings</title>
+<para>Ring is an important component of swift. It maintains the information about the physical location of objects, their replicas and devices. We now create the ring builder files corresponding to object service, container service and account service.</para>
+<para>NOTE: We need to be in the /etc/swift directory when executing the following commands.</para>
+<programlisting>
+pushd /etc/swift
+swift-ring-builder object.builder create 18 3 1
+swift-ring-builder container.builder create 18 3 1
+swift-ring-builder account.builder create 18 3 1
+</programlisting>
+<para>The numbers indicate the desired number of partitions, replicas and the time in hours to restrict moving a partition more than once. See the man page for swift-ring-builder for more information.</para>
+<para>Now we add zones and balance the rings. The syntax is as follows:</para>
+<programlisting>
+swift-ring-builder &lt;builder_file&gt; add &lt;zone&gt;-&lt;ip_address&gt;:&lt;port&gt;/&lt;device&gt; &lt;weight&gt;
+</programlisting>
+<para>Execute the following commands to add the zones and rebalance the ring.</para>
+<programlisting>
+swift-ring-builder object.builder add z1-127.0.0.1:6010/device 1
+swift-ring-builder object.builder add z2-127.0.0.1:6020/device 1
+swift-ring-builder object.builder add z3-127.0.0.1:6030/device 1
+swift-ring-builder object.builder add z4-127.0.0.1:6040/device 1
+swift-ring-builder object.builder rebalance
+swift-ring-builder container.builder add z1-127.0.0.1:6011/device 1
+swift-ring-builder container.builder add z2-127.0.0.1:6021/device 1
+swift-ring-builder container.builder add z3-127.0.0.1:6031/device 1
+swift-ring-builder container.builder add z4-127.0.0.1:6041/device 1
+swift-ring-builder container.builder rebalance
+swift-ring-builder account.builder add z1-127.0.0.1:6012/device 1
+swift-ring-builder account.builder add z2-127.0.0.1:6022/device 1
+swift-ring-builder account.builder add z3-127.0.0.1:6032/device 1
+swift-ring-builder account.builder add z4-127.0.0.1:6042/device 1
+swift-ring-builder account.builder rebalance
+</programlisting>
+</section>
+</section>
+<section xml:id="Starting_Swift_services-d2s760">
+<title>Starting Swift services</title>
+<para>To start swift and the REST API, run the following commands.</para>
+<programlisting>
+swift-init main start
+swift-init rest start
+service swift-proxy start
+</programlisting>
+</section>
+<section xml:id="Testing_Swift-d2s762">
+<title>Testing Swift</title>
+<para>Swift can be tested using the swift command or the dashboard web interface (Horizon). Firstly, make sure that the ownership for /etc/swift directory is set to swift:swift.</para>
+<programlisting>
+chown -R swift:swift /etc/swift
+</programlisting>
+<para>Then run the following command and verify if you get the appropriate account information. The number of containers and objects stored within are displayed as well.</para>
+<programlisting>
+swift stat
+       Account: AUTH_8df4664c24bc40a4889fab4517e8e599
+    Containers: 0
+       Objects: 0
+         Bytes: 0
+  Content-Type: text/plain; charset=utf-8
+   X-Timestamp: 1411522928.10863
+    X-Trans-Id: txcb5b324224544f8892252-0054222170
+X-Put-Timestamp: 1411522928.10863
+</programlisting>
+</section>
+</section>
+<section xml:id="Openstack_Dashboard-d2s740">
+<title>OpenStack Dashboard</title>
+<para>Install OpenStack Dashboard by executing the following command</para>
+<programlisting>
+apt-get install openstack-dashboard
+</programlisting>
+<para>Restart apache with the following command:</para>
+<programlisting>service apache2 restart</programlisting>
+<para>In a browser enter the machine's IP address on which the dashboard is installed and you should see the OpenStack Dashboard login prompt. Login with username as 'admin' and password as 'admin'. From the dashboard, you can create keypairs, create/edit security groups, raise new instances, attach volumes etc. which is explained in "OpenStack Dashboard" chapter.</para>
+</section>
+</section>
+
+<section xml:id="Server_2-d2s762">
+<title>Server2</title>
+<para>This server runs only nova-compute service.</para>
+<section xml:id="BaseOS-d1e1064">
+<title>Base OS</title>
+<para>Install 64 bit version of Ubuntu server 14.04 keeping the following configurations in mind.</para>
+<itemizedlist>
+<listitem><para>Create the first user with the name 'localadmin' .</para></listitem>
+<listitem><para>Installation lets you setup the IP address for the first interface i.e. eth0. Set the IP address details.</para></listitem>
+<listitem><para>During installation select only Openssh-server in the packages menu.</para></listitem>
+</itemizedlist>
+</section>
+<section xml:id="Network_Configuration-d1e1073">
+<title>Network Configuration</title>
+<para>Install vlan and bridge-utils:</para>
+<programlisting>apt-get install vlan bridge-utils</programlisting>
+<para>Edit the following lines in the file /etc/sysctl.conf</para>
+<programlisting>
+net.ipv4.ip_forward=1
+net.ipv4.conf.all.rp_filter=0
+net.ipv4.conf.default.rp_filter=0
+</programlisting>
+<para>Edit the /etc/network/interfaces file so as to looks like this:</para>
+<programlisting>
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet static
+		address 10.10.10.3
+		netmask 255.255.255.0
+		broadcast 10.10.10.255
+		gateway 10.10.10.1
+		dns-nameservers 10.10.10.3
+
+auto eth1
+iface eth1 inet static
+		address 192.168.3.3
+		netmask 255.255.255.0
+		network 192.168.3.0
+		broadcast 192.168.3.255
+</programlisting>
+<para>Restart the network now</para>
+<programlisting>/etc/init.d/networking restart</programlisting>
+</section>
+<section xml:id="NTP_Client-d1e1098">
+<title>NTP Client</title>
+<para>Install NTP package.</para>
+<programlisting>apt-get install ntp</programlisting>
+<para>Open the file /etc/ntp.conf and add the following line to sync to server1.</para>
+<programlisting>server 10.10.10.2</programlisting>
+<para>Restart NTP service to make the changes effective</para>
+<programlisting>etc/init.d/ntp restart</programlisting>
+</section>
+<section xml:id="Nova_Components_nova-compute_alone_-d1e1123">
+<title>Nova Components (nova-compute alone)</title>
+<para>Install the nova-components and dependencies.</para>
+<programlisting>
+apt-get install -y nova-common python-nova nova-compute vlan
+</programlisting>
+<para>Edit the /etc/nova/nova.conf file to look like this. This file is essentially similar to the configuration file (/etc/nova/nova.conf) of Server1 except the VNC part</para>
+<programlisting>
+[DEFAULT]
+logdir=/var/log/nova
+state_path=/var/lib/nova
+lock_path=/var/lock/nova
+force_dhcp_release=True
+iscsi_helper=tgtadm
+libvirt_use_virtio_for_bridges=True
+connection_type=libvirt
+root_helper=sudo nova-rootwrap /etc/nova/rootwrap.conf
+verbose=True
+rpc_backend = nova.rpc.impl_kombu
+rabbit_host = 10.10.10.2
+my_ip = 10.10.10.2
+vncserver_listen = 10.10.10.2
+vncserver_proxyclient_address = 10.10.10.2
+novncproxy_base_url=http://10.10.10.3:6080/vnc_auto.html
+glance_host = 10.10.10.2
+auth_strategy=keystone
+
+network_api_class=nova.network.neutronv2.api.API
+neutron_url=http://10.10.10.2:9696
+neutron_auth_strategy=keystone
+neutron_admin_tenant_name=service
+neutron_admin_username=neutron
+neutron_admin_password=neutron
+neutron_metadata_proxy_shared_secret=openstack
+neutron_admin_auth_url=http://10.10.10.2:35357/v2.0
+linuxnet_interface_driver = nova.network.linux_net.LinuxOVSInterfaceDriver
+firewall_driver=nova.virt.firewall.NoopFirewallDriver
+security_group_api=neutron
+
+vif_plugging_is_fatal: false
+vif_plugging_timeout: 0
+
+[database]
+connection = mysql://nova:nova_dbpass@10.10.10.2/nova
+
+[keystone_authtoken]
+auth_uri = http://10.10.10.2:5000
+auth_host = 10.10.10.2
+auth_port = 35357
+auth_protocol = http
+admin_tenant_name = service
+admin_user = nova
+admin_password = nova_pass
+</programlisting>
+<para>Restart nova-compute on Server2.</para>
+<programlisting>service restart nova-compute</programlisting>
+<para>On Server1, check if the second compute node (Server2) is detected by running</para>
+<programlisting>nova-manage service list</programlisting>
+<para>If you see an output similar to the following, it means that the set up is ready to be used.</para>
+<programlisting>
+localadmin@server1:~$nova-manage service list
+Binary           Host           Zone             Status     State Updated_At
+nova-consoleauth server1        internal         enabled    :-)   2014-04-19 08:55:13
+nova-conductor   server1        internal         enabled    :-)   2014-04-19 08:55:14
+nova-cert        server1        internal         enabled    :-)   2014-04-19 08:55:13
+nova-scheduler   server1        internal         enabled    :-)   2014-04-19 08:55:13
+nova-compute     server1        nova             enabled    :-)   2014-04-19 08:55:14
+nova-console     server1        internal         enabled    :-)   2014-04-19 08:55:14
+nova-compute     server2        nova             enabled    :-)   2014-04-19 10:45:19
+</programlisting>
+</section>
+<section xml:id="Neutron_ovs_agent_alone-hfu4e4">
+<title>Neutron Components(Neutron-OpenvSwitch agent alone)</title>
+<para>Neutron is the networking service of OpenStack. Lets see the steps involved in the installation of Neutron alongside other components.</para>
+<para>Install the Neutron services using the following command</para>>
+<programlisting>apt-get install -y neutron-plugin-openvswitch neutron-plugin-openvswitch-agent openvswitch-switch</programlisting>
+<section xml:id="Neutron_config_ovs_agent_alone-re439">
+<title>Neutron Configuration</title>
+<para>Remove all the lines from /etc/neutron/neutron.conf and add the following lines</para>
+<programlisting>
+[DEFAULT]
+core_plugin = ml2
+notification_driver=neutron.openstack.common.notifier.rpc_notifier
+verbose=True
+rabbit_host=10.10.10.2
+rpc_backend=neutron.openstack.common.rpc.impl_kombu
+service_plugins=router
+allow_overlapping_ips=True
+auth_strategy=keystone
+neutron_metadata_proxy_shared_secret=openstack
+service_neutron_metadata_proxy=True
+nova_admin_password=nova_pass
+notify_nova_on_port_data_changes=True
+notify_nova_on_port_status_changes=True
+nova_admin_auth_url=http://10.10.10.2:35357/v2.0
+nova_admin_tenant_id=service
+nova_url=http://10.10.10.2:8774/v2
+nova_admin_username=nova
+
+
+[keystone_authtoken]
+auth_host = 10.10.10.2
+auth_port = 35357
+auth_protocol = http
+admin_tenant_name = service
+admin_user = neutron
+admin_password = neutron_pass
+signing_dir = $state_path/keystone-signing
+rpc_backend = neutron.openstack.common.rpc.impl_kombu
+rabbit_host = 10.10.10.2
+rabbit_port = 5672
+
+notify_nova_on_port_status_changes = True
+notify_nova_on_port_data_changes = True
+nova_url = http://10.10.10.2:8774
+nova_admin_username = nova
+nova_admin_tenant_id = 
+nova_admin_password = nova
+nova_admin_auth_url = http://10.10.10.2:35357/v2.0
+
+[database]
+connection = mysql://neutrondbadmin:neutronsecret@10.10.10.2/neutron
+
+[agent]
+root_helper = sudo /usr/bin/neutron-rootwrap /etc/neutron/rootwrap.conf
+</programlisting>
+<para>Open /etc/neutron/plugins/ml2/ml2_conf.ini and make the following changes</para>
+<programlisting>
+[ml2]
+type_drivers=flat,vlan
+tenant_network_types=vlan,flat
+mechanism_drivers=openvswitch
+[ml2_type_flat]
+flat_networks=External
+[ml2_type_vlan]
+network_vlan_ranges=Intnet1:100:200
+[ml2_type_gre]
+[ml2_type_vxlan]
+[securitygroup]
+firewall_driver=neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
+enable_security_group=True
+[ovs]
+bridge_mappings=External:br-ex,Intnet1:br-eth1
+</programlisting>
+<para>We have created two physical networks one as a flat network and the other as a vlan network with vlan ranging from 100 to 200. We have mapped External network to br-ex and Intnet1 to br-eth1.Now Create bridges</para>
+<programlisting>
+ovs-vsctl add-br br-int
+ovs-vsctl add-br br-eth1
+ovs-vsctl add-port br-eth1 eth1
+</programlisting>
+<para>Restart Neutron OpenvSwitch agent</para>
+<programlisting>service neutron-plugin-openvswitch-agent restart</programlisting>
+<para>TODO "Neutron agent-list"</para>
+</section>
+</section>
+</section>
+
+<section xml:id="Client1-d1e1155">
+<title>Client1</title>
+<section xml:id="BaseOS-d1e1160">
+<title>BaseOS</title>
+<para>Install 64-bit version of Ubuntu 14.04 Desktop</para>
+</section>
+<section xml:id="Networking_Configuration-d1e1169">
+<title>Networking Configuration</title>
+<para>Edit the /etc/network/interfaces file so as to looks like this:</para>
+<programlisting>
+auto lo
+	iface lo inet loopback
+auto eth0
+	iface eth0 inet static
+	address 10.10.10.4
+	netmask 255.255.255.0
+	broadcast 10.10.10.255
+	gateway 10.10.10.1
+	dns-nameservers 10.10.8.3
+</programlisting>
+</section>
+
+<section xml:id="NTP_Client-d1e1181">
+<title>NTP Client</title>
+<para>Install NTP package.</para>
+<programlisting>
+apt-get install -y ntp
+</programlisting>
+<para>Open the file /etc/ntp.conf and add the following line to sync to server1.</para>
+<programlisting>
+server 10.10.10.2
+</programlisting>
+<para>Restart NTP service to make the changes effective</para>
+<programlisting>
+service ntp restart
+</programlisting>
+</section>
+<section xml:id="Client_Tools-d1e1206">
+<title>Client Tools</title>
+<para>As mentioned above, this is a desktop installation of Ubuntu 14.04 to be used for tasks such as bundling of images. It will also be used for managing the cloud infrastructure using nova, glance and swift commandline tools.</para>
+<para>Install the required command line tools with the following command:</para>
+<programlisting>apt-get install python-novaclient glance-client swift python-cinderclient python-neutronclient</programlisting>
+<para>Install qemu-kvm</para>
+<programlisting>apt-get install qemu-kvm</programlisting>
+<para>Export the following environment variables or add them to your ~/.bashrc.</para>
+<programlisting>
+export SERVICE_TOKEN=admin
+export OS_TENANT_NAME=admin
+export OS_USERNAME=admin
+export OS_PASSWORD=admin
+export OS_AUTH_URL="http://10.10.10.2:5000/v2.0/"
+export SERVICE_ENDPOINT=http://10.10.10.2:35357/v2.0
+</programlisting>
+<para>Execute nova and glance commands to check the connectivity to OpenStack setup.</para>
+<programlisting>
+nova list
++--------------------------------------+------------+--------+----------------------+
+|                  ID                  |    Name    | Status |      Networks        |
++--------------------------------------+------------+--------+----------------------+
+| 25ee9230-6bb5-4eca-8808-e6b4e0348362 | myinstance | ACTIVE | private=192.168.4.35 |
+| c939cb2c-e662-46e5-bc31-453007442cf9 | myinstance1| ACTIVE | private=192.168.4.36 |
++--------------------------------------+------------+--------+----------------------+
+</programlisting>
+<programlisting>
+glance index
+ID                                   Name          Disk     Container Size
+                                                   Format   Format
+------------------------------------ ------------------------------ ----------------
+65b9f8e1-cde8-40e7-93e3-0866becfb9d4 windows       qcow2    ovf       7580745728
+f147e666-990c-47e2-9caa-a5a21470cc4e debian        qcow2    ovf       932904960
+f3a8e689-02ed-460f-a587-dc868576228f opensuse      qcow2    ovf       1072300032
+aa362fd9-7c28-480b-845c-85a5c38ccd86 centoscli     qcow2    ovf       1611530240
+49f0ec2b-26dd-4644-adcc-2ce047e281c5 ubuntuimage   qcow2    ovf       1471807488
+</programlisting>
+</section>
+</section>
+
+<section xml:id="Dashboard-d1e1208">
+<title>OpenStack Dashboard</title>
+<para>Start a browser and type the ip address of Server1 i.e, http://10.10.10.2. You should see the dashboard login screen. Login with the credentials username - admin and password - admin to manage the OpenStack setup.</para>
+</section>
+</chapter>

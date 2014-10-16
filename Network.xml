@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<chapter xmlns:db="http://docbook.org/ns/docbook" xmlns="http://docbook.org/ns/docbook" xml:id="Network_Management-d1e2079" version="5.0" xml:base="Network.xml">
+	<title>Network Management</title>
+	<section xml:id="Introduction-d1e2084">
+		<title>Introduction</title>
+		<para>In OpenStack, the networking is managed by a component called Neutron. This interacts with nova-compute to ensure that the instances have the right kind of networking setup for them to communicate among themselves as well as with the outside world. Each OpenStack instance can have 2 IP addresses attached to it. One is the private IP address and the other called Public IP address. The private IP address is typically used for communication between instances and the public IP is used for communication of instances with the outside world. The so called public IP address need not be a public IP address route-able on the Internet ; it can even be an address on the corporate LAN.</para>
+		<para>The network configuration inside the instance is done with the private IP address in view. The association between the private IP and the public IP and necessary routing is handled by neutron-l3-agent and the instances need not be aware of it.</para>
+		<para>Neutron provides 4 different network types</para>
+		<itemizedlist>
+			<listitem><para>Flat</para></listitem>
+			<listitem><para>VLAN</para></listitem>
+			<listitem><para>GRE</para></listitem>
+			<listitem><para>VxLAN</para></listitem>
+		</itemizedlist>
+		<para>Flat network should be chosen if you intend to create only one openstack private network per physical network. VLAN Network is ideal for beginners to easily grasp the idea of OpenStack Networking. The other modes can be chosen when you do not have VLAN Enabled switches or more specialized setup is needed.</para>
+		<para>The network type is chosen by using one of the following configuration options in /etc/neutron/plugins/ml2/ml2_conf.ini. This line can also contain more than network type. </para>
+		<programlisting>tenant_network_types =</programlisting>
+		<para>In each of these cases, run the following commands to set up private and public IP addresses for use by the instances:</para>
+		<para>You can create a private network by using the following command</para>
+		<programlisting>neutron net-create N1</programlisting>
+		<para>The output of the command will be like this</para>
+		<programlisting>
++---------------------------+--------------------------------------+
+| Field                     | Value                                |
++---------------------------+--------------------------------------+
+| admin_state_up            | True                                 |
+| id                        | beb5d2ca-46b0-45d7-a469-98d0575b7530 |
+| name                      | N1                                   |
+| provider:network_type     | vlan                                 |
+| provider:physical_network | Intnet1                              |
+| provider:segmentation_id  | 100                                  |
+| router:external           | False                                |
+| shared                    | False                                |
+| status                    | ACTIVE                               |
+| subnets                   |                                      |
+| tenant_id                 | 8df4664c24bc40a4889fab4517e8e599     |
++---------------------------+--------------------------------------+
+		</programlisting>
+		<para>Create a subnet for the network created above</para>
+		<programlisting>neutron subnet-create --name subnetone N1 192.168.10.0/24 --dns-nameserver 8.8.8.8</programlisting>
+		<para>The output would be like</para>
+		<programlisting>
++------------------+----------------------------------------------------+
+| Field            | Value                                              |
++------------------+----------------------------------------------------+
+| allocation_pools | {"start": "192.168.10.2", "end": "192.168.10.254"} |
+| cidr             | 192.168.10.0/24                                    |
+| dns_nameservers  | 8.8.8.8                                            |
+| enable_dhcp      | True                                               |
+| gateway_ip       | 192.168.10.1                                       |
+| host_routes      |                                                    |
+| id               | ccc80588-2b0d-459b-82e9-972ff4291b79               |
+| ip_version       | 4                                                  |
+| name             | subnetone                                          |
+| network_id       | beb5d2ca-46b0-45d7-a469-98d0575b7530               |
+| tenant_id        | 8df4664c24bc40a4889fab4517e8e599                   |
++------------------+----------------------------------------------------+
+		</programlisting>
+		<para>Now you can launch instances in network 'N1' and they will have IP addresses in the range defined by ‘subnetone’.</para>
+		<para>The public IP network or the External network can be created using the following command</para>
+		<programlisting>neutron net-create Extnet --provider:network_type flat --provider:physical_network External --router:external True --shared True</programlisting>
+		<para>The output would be like</para>
+		<programlisting>
++---------------------------+--------------------------------------+
+| Field                     | Value                                |
++---------------------------+--------------------------------------+
+| admin_state_up            | True                                 |
+| id                        | 9c9436d4-2b7c-4787-8535-9835e6d9ac8e |
+| name                      | Extnet                               |
+| provider:network_type     | flat                                 |
+| provider:physical_network | External                             |
+| provider:segmentation_id  |                                      |
+| router:external           | True                                 |
+| shared                    | True                                 |
+| status                    | ACTIVE                               |
+| subnets                   | be9e9fbc-9140-4048-9636-eab2dd10d2e8 |
+| tenant_id                 | 8df4664c24bc40a4889fab4517e8e599     |
++---------------------------+--------------------------------------+
+		</programlisting>
+		<para>Create a subnet for the External network</para>
+		<programlisting>neutron subnet-create --name Externalsubnet --gateway 10.10.10.1 Extnet 10.10.10.0/24 --enable_dhcp False --allocation-pool start=10.10.10.10,end=10.10.10.49</programlisting>
+		<para>The output would be like</para>
+		<programlisting>
++------------------+------------------------------------------------+
+| Field            | Value                                          |
++------------------+------------------------------------------------+
+| allocation_pools | {"start": "10.10.10.10", "end": "10.10.10.49"} |
+| cidr             | 10.10.10.0/24                                  |
+| dns_nameservers  |                                                |
+| enable_dhcp      | False                                          |
+| gateway_ip       | 10.10.10.1                                     |
+| host_routes      |                                                |
+| id               | be9e9fbc-9140-4048-9636-eab2dd10d2e8           |
+| ip_version       | 4                                              |
+| name             | ExternalSubnet                                 |
+| network_id       | 9c9436d4-2b7c-4787-8535-9835e6d9ac8e           |
+| tenant_id        | 8df4664c24bc40a4889fab4517e8e599               |
++------------------+------------------------------------------------+
+		</programlisting>
+		<para>We need a router to connect between the private network and public network. We can create a router using the following command</para>
+		<programlisting>neutron router-create EXTRouter</programlisting>
+		<para>The output would be like</para>
+		<programlisting>
++-----------------------+-------------------------------------------+
+| Field                 | Value                                     |
++-----------------------+-------------------------------------------+
+| admin_state_up        | True                                      |
+| external_gateway_info |                                           |
+| id                    | a8b94496-87eb-4ecc-add3-7e4236780d46      |
+| name                  | EXTRouter                                 |
+| routes                |                                           |
+| status                | ACTIVE                                    |
+| tenant_id             | 8df4664c24bc40a4889fab4517e8e599          |
++-----------------------+-------------------------------------------+
+		</programlisting>
+		<para>We have to add the private and public network to the router interfaces.</para>
+		<para>The router is now attached to the private network, by specifying the corresponding subnet's name.</para>
+		<programlisting>neutron router-interface-add EXTRouter subnetone</programlisting>
+		<para>The router is also attached to external network</para>
+		<programlisting>neutron router-gateway-set EXTRouter Extnet</programlisting>		
+		<para>You can then create a Floating IP from the public IP reserve created already from 10.10.10.10 to 10.10.10.49 in the network "Extnet"</para>
+		<programlisting>neutron floatingip-create Extnet</programlisting>
+		<para>The output of the command would be like</para>
+		<programlisting>
+Created a new floatingip:
++---------------------+--------------------------------------+
+| Field               | Value                                |
++---------------------+--------------------------------------+
+| fixed_ip_address    |                                      |
+| floating_ip_address | 10.10.10.11                          |
+| floating_network_id | 9c9436d4-2b7c-4787-8535-9835e6d9ac8e |
+| id                  | 7b4cee72-ffcd-4484-a5d8-371b23bb3cc3 |
+| port_id             |                                      |
+| router_id           |                                      |
+| status              | ACTIVE                               |
+| tenant_id           | 8df4664c24bc40a4889fab4517e8e599     |
++---------------------+--------------------------------------+
+		</programlisting>
+		<para>Associate the floating IP with a running instance using the following command</para>
+		<programlisting>nova floating-ip-associate instance-ID Floating-IP-Address</programlisting>
+	</section>
+</chapter>

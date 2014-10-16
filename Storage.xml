@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?><chapter xmlns:db="http://docbook.org/ns/docbook" xmlns="http://docbook.org/ns/docbook" xml:id="Storage_Management-d1e1995" version="5.0" xml:base="Storage.xml">
+ <title>Storage Management</title>
+<section xml:id="Cinder-volume-d1e2000">
+<title>Cinder-volume</title>
+<para>Cinder-volume provides persistent block storage for use with instances. The storage on the instances is non persistent in nature and hence any data that you generate and store on the file system on the first disk of the instance gets lost when the instance is terminated. You will need to use persistent volumes provided by cinder-volume if you want any data generated during the life of the instance to persist after the instance is terminated.</para>
+<para>Commands from cinder client package can be used to manage these volumes.</para>
+<para>Here are a few examples:</para>
+<section xml:id="Interacting_with_Storage_Controller-d1e2014">
+<title>Interacting with Storage Controller</title>
+<para>(TO CHECK this Para)Make sure that you have sourced creds file before running any of the following commands. The following commands refer to a zone called 'nova', which we created in the chapter on "Installation and Configuration". The project is 'proj' as referred to in the other chapters.</para>
+<para>Create a 10 GB volume</para>
+<programlisting>cinder create 10 --display-name myvolume1</programlisting>
+<para>You should see an output like:</para>
+<programlisting>
++---------------------+--------------------------------------+
+|       Property      |                Value                 |
++---------------------+--------------------------------------+
+|     attachments     |                  []                  |
+|  availability_zone  |                 nova                 |
+|       bootable      |                false                 |
+|      created_at     |      2014-10-04T10:35:44.750783      |
+| display_description |                 None                 |
+|     display_name    |              myvolume1               |
+|      encrypted      |                False                 |
+|          id         | 2c56e6ed-80de-409c-8f37-6edaf8b224fd |
+|       metadata      |                  {}                  |
+|         size        |                  10                  |
+|     snapshot_id     |                 None                 |
+|     source_volid    |                 None                 |
+|        status       |               creating               |
+|     volume_type     |                 None                 |
++---------------------+--------------------------------------+
+</programlisting>
+<para>List the volumes</para>
+<programlisting>cinder list</programlisting>
+<para>You should see an output like this:</para>
+<programlisting>	
++-------------------------+---------+------------+----+-----------+--------+-----------+
+|         ID              |  Status |Display Name|Size|Volume Type|Bootable|Attached to|
++-------------------------+---------+------------+----+-----------+--------+-----------+
+|2c6ed-8de-49c-8f7-6eda4fd|available| myvolume1  | 10 |   None    | false  |           |
++-------------------------+---------+------------+----+-----------+--------+-----------+
+</programlisting>
+<para>Attach a volume to a running instance</para>
+<programlisting>nova volume-attach b4aa8dd3-6d2c-42fa-882f-1ab3160ee6e7 2c6ed-8de-49c-8f7-6eda4fd /dev/vdb</programlisting>
+<para>A volume can only be attached to one instance at a time. When "cinder list" shows the status of a volume as 'available', it means it is not attached to any instance and ready to be used. If the status changes from "available" to "in-use" if it is attached to an  instance successfully.</para>
+<para>When a volume is attached to an instance, it shows up as an additional SCSI disk on the instance. You can login to the instance and mount the disk, format it and use it.</para>
+<para>Detach a volume from an instance.</para>
+<programlisting>nova volume-detach b4aa8dd3-6d2c-42fa-882f-1ab3160ee6e7 2c6ed-8de-49c-8f7-6eda4fd</programlisting>
+<para>The data on the volume persists even after the volume is detached from an instance. You can see the data on reattaching the volume to another instance.</para>
+<para>Even though you have indicated /dev/vdb as the device on the instance, the actual device name created by the OS running inside the instance may differ. You can find the name of the device by looking at the device nodes in /dev or by watching the syslog when the volume is being attached.</para>
+</section>
+<section xml:id="Swift_storage_operations--d1e2125">
+<title>Swift</title>
+<para>Swift is a storage service that can be used for storage and archival of objects. Swift provides a REST interface. You can use Swift commandline which is an interface for the OpenStack object store service.</para>
+<para>To get the information about swift account, container and objects.</para>
+<programlisting>
+swift stat
+</programlisting>
+<para>Output:</para>
+<programlisting>
+       Account: AUTH_8df4664c24bc40a4889fab4517e8e599
+    Containers: 1
+       Objects: 1
+         Bytes: 1790
+ Accept-Ranges: bytes
+   X-Timestamp: 1413260773.11084
+    X-Trans-Id: txa04183fe1f9943fa94672-00543ca5f6
+  Content-Type: text/plain; charset=utf-8
+</programlisting>
+<para>To get information about a particular container (mycontainer):</para>
+<programlisting>
+swift stat mycontainer
+</programlisting>
+<para>To get information about an object (abc123.txt) within container (mycontainer):</para>
+<programlisting>
+swift stat mycontainer abc123.txt
+</programlisting>
+<para>To list available containers in account:</para>
+<programlisting>
+swift list
+</programlisting>
+<para>To list all objects within container 'mycontainer':</para>
+<programlisting>
+$ swift list mycontainer
+</programlisting>
+<para>To upload files 'abc.txt' and 'xyz.txt' to 'mycontainer':</para>
+<programlisting>
+$ swift upload mycontainer /path/abc.txt /path/xyz.txt
+</programlisting>
+<para>To download all objects from container 'mycontainer':</para>
+<programlisting>
+$ swift download mycontainer
+</programlisting>
+<para>To download 'abc.txt' and 'xyz.txt' from container 'mycontainer':</para>
+<programlisting>
+$ swift download mycontainer abc.txt xyz.txt
+</programlisting>
+<para>To delete all objects in all containers:</para>
+<programlisting>
+$ swift --all delete
+</programlisting>
+<para>To delete all objects in container 'mycontainer':</para>
+<programlisting>
+$ swift delete mycontainer
+</programlisting>
+<para>To delete files 'abc.txt' and 'xyz.txt' from container 'mycontainer':</para>
+<programlisting>
+$ swift delete mycontainer abc.txt xyz.txt
+</programlisting>
+</section>
+</section>
+</chapter>

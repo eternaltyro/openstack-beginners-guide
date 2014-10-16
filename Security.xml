@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?><chapter xmlns:db="http://docbook.org/ns/docbook" xmlns="http://docbook.org/ns/docbook" xml:id="Security-d1e2500" version="5.0" xml:base="Security.xml">
+<title>Security</title>
+<section xml:id="Security_Overview-d1e2505">
+<title>Security Overview</title>
+<para>OpenStack provides ingress filtering for the instances based on the concept of security groups. OpenStack accomplishes ingress filtering by creating suitable IP Tables rules. A Security Group is a named set of rules that get applied to the incoming packets for the instances. You can specify a security group while launching an instance. Each security group can have multiple rules associated with it. Each rule specifies the source IP/network, protocol type, destination ports etc. Any packet matching these parameters specified in a rule is allowed in. Rest of the packets are blocked.</para>
+<para>A security group that does not have any rules associated with it causes blocking of all incoming traffic. The mechanism only provides ingress filtering and does not provide any egress filtering. As a result all outbound traffic is allowed. If you need to implement egress filtering, you will need to implement that inside the instance using a firewall.</para>
+<para>Horizon lets you manage security groups and also let you specify a security group while launching an instance. You can also use nova client for this purpose.</para>
+<para>Here are a few Nova commands to manage security groups. Like in our earlier chapters, the project name is "proj"</para>
+
+<para>Create a security group named "myserver".</para>
+<programlisting>nova secgroup-create myserver "My default"</programlisting>
+<programlisting>
++--------------------------------------+----------+-------------+
+| Id                                   | Name     | Description |
++--------------------------------------+----------+-------------+
+| 0d524280-2e8a-4b43-9445-50e6d185daf8 | myserver |  My default |
++--------------------------------------+----------+-------------+
+</programlisting>
+
+<para>Add a rule to the security group "myserver" allowing icmp and tcp traffic from 192.168.1.1.</para>
+<programlisting>nova secgroup-add-rule myserver tcp 22 22 192.168.1.1/32</programlisting>
+<programlisting>
++-------------+-----------+---------+----------------+--------------+
+| IP Protocol | From Port | To Port | IP Range       | Source Group |
++-------------+-----------+---------+----------------+--------------+
+| tcp         | 22        | 22      | 192.168.1.1/32 |              |
++-------------+-----------+---------+----------------+--------------+
+localadmin@server1$ nova secgroup-add-rule myserver icmp -1 -1 192.168.1.1/32
++-------------+-----------+---------+----------------+--------------+
+| IP Protocol | From Port | To Port | IP Range       | Source Group |
++-------------+-----------+---------+----------------+--------------+
+| icmp        | -1        | -1      | 192.168.1.1/32 |              |
++-------------+-----------+---------+----------------+--------------+
+</programlisting>
+<para>Rules can be viewed with nova secgroup-list.</para>
+<programlisting>nova secgroup-list</programlisting>
+<programlisting>
++--------------------------------------+---------+-------------+
+| Id                                   | Name    | Description |
++--------------------------------------+---------+-------------+
+| 9fedb29d-c12c-49c0-bdd4-e5265488f53d | myserver| My default  |
++--------------------------------------+---------+-------------+
+</programlisting>
+
+<para>Remove the rule for ssh traffic from the source ip 192.168.1.1 from the security group "myserver"</para>
+<programlisting>nova secgroup-delete-rule myserver tcp 22 22 192.168.1.1/32</programlisting>
+<programlisting>
++-------------+-----------+---------+----------------+--------------+
+| IP Protocol | From Port | To Port | IP Range       | Source Group |
++-------------+-----------+---------+----------------+--------------+
+| tcp         | 22        | 22      | 192.168.1.1/32 |              |
++-------------+-----------+---------+----------------+--------------+
+</programlisting>
+
+<para>Delete the security group "myserver"</para>
+<programlisting>nova secgroup-delete myserver</programlisting>
+<programlisting>
++--------------------------------------+----------+-------------------+
+| Id                                   | Name     | Description       |
++--------------------------------------+----------+-------------------+
+| 0d524280-2e8a-4b43-9445-50e6d185daf8 | myserver | My default        |
++--------------------------------------+----------+-------------------+
+</programlisting>
+<para>Launch an instance associated with the security group "myservers".</para>
+<programlisting>nova boot --flavor 1 --image 4b1dceb5-6c9a-4268-9bcc-4ff33e209bd2 myinstance --key_name mykey</programlisting>
+<programlisting>
++--------------------------------------+-----------------------------------------------+
+| Property                             | Value                                         |
++--------------------------------------+-----------------------------------------------+
+| OS-DCF:diskConfig                    | MANUAL                                        |
+| OS-EXT-AZ:availability_zone          | nova                                          |
+| OS-EXT-SRV-ATTR:host                 | -                                             |
+| OS-EXT-SRV-ATTR:hypervisor_hostname  | -                                             |
+| OS-EXT-SRV-ATTR:instance_name        | instance-00000005                             |
+| OS-EXT-STS:power_state               | 0                                             |
+| OS-EXT-STS:task_state                | scheduling                                    |
+| OS-EXT-STS:vm_state                  | building                                      |
+| OS-SRV-USG:launched_at               | -                                             |
+| OS-SRV-USG:terminated_at             | -                                             |
+| accessIPv4                           |                                               |
+| accessIPv6                           |                                               |
+| adminPass                            | WrGtHqBCNA64                                  |
+| config_drive                         |                                               |
+| created                              | 2014-09-27T10:09:11Z                          |
+| flavor                               | m1.tiny (1)                                   |
+| hostId                               |                                               |
+| id                                   | 4017d7f2-44e6-4858-a175-b4dbb178156d          |
+| image                                | Cirros (4b1dceb5-6c9a-4268-9bcc-4ff33e209bd2) |
+| key_name                             | mykey                                         |
+| metadata                             | {}                                            |
+| name                                 | myinstance                                    |
+| os-extended-volumes:volumes_attached | []                                            |
+| progress                             | 0                                             |
+| security_groups                      | default                                       |
+| status                               | BUILD                                         |
+| tenant_id                            | fec44bd5871a41068791756610090158              |
+| updated                              | 2014-09-27T10:09:11Z                          |
+| user_id                              | f50fe85ae90b4381871f4018257414ed              |
++--------------------------------------+-----------------------------------------------+
+</programlisting>
+<para>When you do not specify a security group, the instance gets associated with an inbuilt security group called "default". </para>
+</section>
+</chapter>

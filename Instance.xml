@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?><chapter xmlns:db="http://docbook.org/ns/docbook" xmlns="http://docbook.org/ns/docbook" xml:id="Instance_Management-d1e1646" version="5.0" xml:base="Instance.xml">
+    <title>Instance Management</title>
+<section xml:id="Introduction-d1e1651">
+<title>Introduction</title>
+<para>An instance is a virtual machine provisioned by OpenStack on one of the nova-compute servers. 
+When you launch an instance, a series of steps are triggered on various components of the OpenStack. 
+During the life cycles of an instance, it moves through various stages as shown in the diagram below:
+</para>
+<para>
+<mediaobject>
+    <imageobject role="fo">
+        <imagedata fileref="images/lifecycle.png"
+            format="PNG" scale="30"/>
+    </imageobject>
+    <imageobject role="html">
+        <imagedata fileref="images/lifecyclehtml.png"
+            format="PNG" />
+    </imageobject>
+</mediaobject></para>
+<para>The following interfaces can be used for managing instances in nova.</para>
+<itemizedlist>
+<listitem><para>Nova commands</para></listitem>
+<listitem><para>Custom applications developed using Nova APIs</para></listitem>
+</itemizedlist>
+</section>
+<section xml:id="	Command_Line_Tools-d1e1828">
+<title>Openstack Command Line Tools</title>
+<para>Nova has a bunch of command line tools to manage the OpenStack setup. These commands help you manage images, instances, storage, networking etc. A few commands related to managing the instances are given below.</para>
+<para>For a complete list of commands, see Commands chapter.</para>
+
+
+<section xml:id="Creation_of_Key_Pairs-d1e1848">
+<title>Creation of Key Pairs</title>
+<para>OpenStack expects the client tools to use 2 kinds of credentials. One set of credentials are called Access Key and Secret Key that all clients would need to use to make any requests to the Cloud Controller. Each user registered on the web interface has this set created for him. You can download it from the web interface as mentioned in the chapter on "Web Interface".</para>
+
+<para>You will also need to generate a keypair consisting of private key/public key to be able to launch instances on OpenStack. These keys are injected into the instances to make password-less SSH access to the instance. This depends on the way the necessary tools are bundled into the images. Please refer to the chapter on "Image Management" for more details. </para>
+
+<para>Keypairs can also be generated using the following commands.</para>
+<programlisting>
+ssh-keygen
+cd .ssh
+nova keypair-add --pub_key id_rsa.pub mykey
+</programlisting>
+<para>This creates a new keypair called mykey. The private key id_rsa is saved locally in ~/.ssh which can be used to connect to an instance launched using mykey as the keypair. You can see the available keypairs with nova keypair-list command.</para>
+<programlisting>
+nova keypair-list
++-------+-------------------------------------------------+
+|  Name |                   Fingerprint                   |
++-------+-------------------------------------------------+
+| mykey |  b0:18:32:fa:4e:d4:3c:1b:c4:6c:dd:cb:53:29:13:82|
+| mykey2|  b0:18:32:fa:4e:d4:3c:1b:c4:6c:dd:cb:53:29:13:82|
++-------+-------------------------------------------------+
+</programlisting>
+<para>Also while executing 'ssh-keygen' you can specify a custom location and custom file names for the keypairs that you want to create.</para>
+<para>To delete an existing keypair:</para>
+<programlisting>
+nova keypair-delete mykey2
+</programlisting>
+</section>
+<section xml:id="Launch_and_manage_instances-d1e1885">
+<title>Launch and manage instances</title>
+<para>There are several commands that help in managing the instances. Here are a few examples:</para>
+<programlisting>
+localadmin@server1$ nova boot --flavor 1 --image 4b1dceb5-6c9a-4268-9bcc-4ff33e209bd2 myinstance --key_name mykey
++--------------------------------------+-----------------------------------------------+
+| Property                             | Value                                         |
++--------------------------------------+-----------------------------------------------+
+| OS-DCF:diskConfig                    | MANUAL                                        |
+| OS-EXT-AZ:availability_zone          | nova                                          |
+| OS-EXT-SRV-ATTR:host                 | -                                             |
+| OS-EXT-SRV-ATTR:hypervisor_hostname  | -                                             |
+| OS-EXT-SRV-ATTR:instance_name        | instance-00000005                             |
+| OS-EXT-STS:power_state               | 0                                             |
+| OS-EXT-STS:task_state                | scheduling                                    |
+| OS-EXT-STS:vm_state                  | building                                      |
+| OS-SRV-USG:launched_at               | -                                             |
+| OS-SRV-USG:terminated_at             | -                                             |
+| accessIPv4                           |                                               |
+| accessIPv6                           |                                               |
+| adminPass                            | WrGtHqBCNA64                                  |
+| config_drive                         |                                               |
+| created                              | 2014-09-27T10:09:11Z                          |
+| flavor                               | m1.tiny (1)                                   |
+| hostId                               |                                               |
+| id                                   | 4017d7f2-44e6-4858-a175-b4dbb178156d          |
+| image                                | Cirros (4b1dceb5-6c9a-4268-9bcc-4ff33e209bd2) |
+| key_name                             | mykey                                         |
+| metadata                             | {}                                            |
+| name                                 | myinstance                                    |
+| os-extended-volumes:volumes_attached | []                                            |
+| progress                             | 0                                             |
+| security_groups                      | default                                       |
+| status                               | BUILD                                         |
+| tenant_id                            | fec44bd5871a41068791756610090158              |
+| updated                              | 2014-09-27T10:09:11Z                          |
+| user_id                              | f50fe85ae90b4381871f4018257414ed              |
++--------------------------------------+-----------------------------------------------+
+</programlisting>
+<programlisting>
+$ nova list
++--------------------------------------+------------+--------+----------------------+
+|                  ID                  |    Name    | Status |      Networks        |
++--------------------------------------+------------+--------+----------------------+
+| 25ee9230-6bb5-4eca-8808-e6b4e0348362 | myinstance | ACTIVE | private=192.168.4.35 |
+| c939cb2c-e662-46e5-bc31-453007442cf9 | myinstance1| ACTIVE | private=192.168.4.36 |
++--------------------------------------+------------+--------+----------------------+
+</programlisting>
+<programlisting>
+$ nova reboot 25ee9230-6bb5-4eca-8808-e6b4e0348362
+$ nova list
++--------------------------------------+------------+--------+----------------------+
+|                  ID                  |    Name    | Status |      Networks        |
++--------------------------------------+------------+--------+----------------------+
+| 25ee9230-6bb5-4eca-8808-e6b4e0348362 | myinstance | REBOOT | private=192.168.4.35 |
+| c939cb2c-e662-46e5-bc31-453007442cf9 | myinstance1| ACTIVE | private=192.168.4.34 |
++--------------------------------------+------------+--------+----------------------+
+</programlisting>
+<programlisting>
+$ nova delete 25ee9230-6bb5-4eca-8808-e6b4e0348362
+$ nova list
++--------------------------------------+------------+--------+----------------------+
+|                  ID                  |   Name     | Status |     Networks         |
++--------------------------------------+------------+--------+----------------------+
+| c939cb2c-e662-46e5-bc31-453007442cf9 | myinstance1| ACTIVE | private=192.168.4.34 |
++--------------------------------------+------------+--------+----------------------+
+
+</programlisting>
+<programlisting>
+$ nova console-log myinstance
+</programlisting>
+<para>For passwordless ssh access to the instance:</para>
+<programlisting>
+ssh -i &lt;private_key&gt; username@&lt;ip_address&gt;
+</programlisting>
+<para>VM type has implications for harddisk size, amount of RAM and number of CPUs allocated to the instance. Check the VM types available.</para>
+<programlisting>nova flavor-list</programlisting>
+<para>New flavours can be created with the command.</para>
+<programlisting>nova-manage flavor create &lt;args&gt; [options]</programlisting>
+<para>A flavour can be deleted with the command.</para>
+<programlisting>nova-manage flavor delete &lt;args&gt; [options]</programlisting>
+</section>
+</section>
+</chapter>
