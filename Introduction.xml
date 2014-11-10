@@ -9,6 +9,9 @@
 			<listitem><para>Platform as a Service (PaaS)</para></listitem>
 			<listitem><para>Software as a Service (SaaS)</para></listitem>
 		</itemizedlist>
+        <para>Infrastructure as a service refers to the hardware components and the operating system provided as a service. This is similar to a virtual private server offerings where the virtual server and the operating system are managed by the vendor and the user handles installation of applications and other software.</para>
+        <para>Platform as a service refers to a system where the hardware and the necessary software required to run an application. For instance, if we have to run a PHP web application, the PaaS platform provides us the PHP processor, allied libraries required for our application and the hardware. Platform as a service also lets the application scale in response to increase in load. All of these components are managed by the service provider, thus letting the user focus on development and testing of the application. </para>
+        <para>Software as a service is any application provided as a service. Usually, applications are purchased as a product. Like an image processing software or a spreadsheet software. But in SaaS model, the software is not purchased, it is rather used as a service over the browser. Examples are Google documents, and Microsoft 360!</para>
 	</section>
 	<section xml:id="OpenStack-d1e94">
 		<title>OpenStack</title>
