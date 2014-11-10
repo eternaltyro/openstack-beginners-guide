@@ -26,6 +26,10 @@ Layout of the source:
             |
             |_ README - this file
 
+## Known issues
+
+- When building PDF files using DBLATEX, single quotes (apostrophes) get converted to backquotes automatically. Be careful when you copy/paste commands. 
+
 ## Bugs and Issues:
 
 Kindly create an issue on GitHub for any bugs. 
