@@ -26,6 +26,12 @@ Layout of the source:
             |
             |_ README - this file
 
+## Building the PDF from Docbook source
+
+- Using dblatex command
+- Using a2x 
+- Building individual files and using PDF-toolkit (pdftk) to join them into a single PDF file.
+
 ## Known issues
 
 - When building PDF files using DBLATEX, single quotes (apostrophes) get converted to backquotes automatically. Be careful when you copy/paste commands. 
