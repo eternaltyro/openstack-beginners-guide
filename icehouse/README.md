@@ -11,9 +11,7 @@
 
 - This is a tutorial style Beginner's guide for OpenStack IceHouse on Ubuntu 14.04. 
 - The aim is to help the reader in setting up a minimal installation of OpenStack over two machines
-
 - The beginner's guide has been written using DocBook 5.0
-
 - Each chapter has a dedicated DocBook source file.
 
 Layout of the source:
