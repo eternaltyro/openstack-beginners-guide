@@ -4,9 +4,9 @@
 ## OpenStack Beginner's Guide for Ubuntu 14.04, Trusty Tahr
 =============================================================
 
-+ OpenStack version: IceHouse
-+ Ubuntu Version: Ubuntu 14.04 LTS (Trusty Tahr)
-+ License: Creative Commons Attribution Sharealike 4.0 International
+    + OpenStack version: IceHouse
+    + Ubuntu Version: Ubuntu 14.04 LTS (Trusty Tahr)
+    + License: Creative Commons Attribution Sharealike 4.0 International
 
 
 - This is a tutorial style Beginner's guide for OpenStack IceHouse on Ubuntu 14.04. 
