@@ -161,44 +161,24 @@ character-set-server = utf8
 <para>Create MySQL databases to be used with nova, glance and keystone.</para>
 <para>Create a database named nova.</para>
 <programlisting>mysql -uroot -pmygreatsecret -e 'CREATE DATABASE nova;'</programlisting>
-<para>Create a user named novadbadmin.</para>
-<programlisting>mysql -uroot -pmygreatsecret -e 'CREATE USER novadbadmin;'</programlisting>
 <para>Grant all privileges for novadbadmin on the database "nova".</para>
-<programlisting>mysql -uroot -pmygreatsecret -e "GRANT ALL PRIVILEGES ON nova.* TO 'novadbadmin'@'%';"</programlisting>
-<para>Create a password for the user "novadbadmin".</para>
-<programlisting>mysql -uroot -pmygreatsecret -e "SET PASSWORD FOR 'novadbadmin'@'%' = PASSWORD('novasecret');"</programlisting>
+<programlisting>mysql -uroot -pmygreatsecret -e "GRANT ALL PRIVILEGES ON nova.* TO 'novadbadmin'@'%' IDENTIFIED BY 'novasecret';"</programlisting>
 <para>Create a database named glance.</para>
 <programlisting>mysql -uroot -pmygreatsecret -e 'CREATE DATABASE glance;'</programlisting>
-<para>Create a user named glancedbadmin.</para>
-<programlisting>mysql -uroot -pmygreatsecret -e 'CREATE USER glancedbadmin;'</programlisting>
 <para>Grant all privileges for glancedbadmin on the database "glance".</para>
-<programlisting>mysql -uroot -pmygreatsecret -e "GRANT ALL PRIVILEGES ON glance.* TO 'glancedbadmin'@'%';"</programlisting>
-<para>Create a password for the user "glancedbadmin".</para>
-<programlisting>mysql -uroot -pmygreatsecret -e "SET PASSWORD FOR 'glancedbadmin'@'%' = PASSWORD('glancesecret');"</programlisting>
+<programlisting>mysql -uroot -pmygreatsecret -e "GRANT ALL PRIVILEGES ON glance.* TO 'glancedbadmin'@'%' IDENTIFIED BY 'glancesecret';"</programlisting>
 <para>Create a database named keystone.</para>
 <programlisting>mysql -uroot -pmygreatsecret -e 'CREATE DATABASE keystone;'</programlisting>
-<para>Create a user named keystonedbadmin.</para>
-<programlisting>mysql -uroot -pmygreatsecret -e 'CREATE USER keystonedbadmin;'</programlisting>
 <para>Grant all privileges for keystonedbadmin on the database "keystone".</para>
-<programlisting>mysql -uroot -pmygreatsecret -e "GRANT ALL PRIVILEGES ON keystone.* TO 'keystonedbadmin'@'%';"</programlisting>
-<para>Create a password for the user "keystonedbadmin".</para>
-<programlisting>mysql -uroot -pmygreatsecret -e "SET PASSWORD FOR 'keystonedbadmin'@'%' = PASSWORD('keystonesecret');"</programlisting>
+<programlisting>mysql -uroot -pmygreatsecret -e "GRANT ALL PRIVILEGES ON keystone.* TO 'keystonedbadmin'@'%' IDENTIFIED BY 'keystonesecret';"</programlisting>
 <para>Create a database named neutron.</para>
 <programlisting>mysql -uroot -pmygreatsecret -e 'CREATE DATABASE neutron;'</programlisting>
-<para>Create a user named neutrondbadmin.</para>
-<programlisting>mysql -uroot -pmygreatsecret -e 'CREATE USER neutrondbadmin;'</programlisting>
 <para>Grant all privileges for neutrondbadmin on the database "neutron".</para>
-<programlisting>mysql -uroot -pmygreatsecret -e "GRANT ALL PRIVILEGES ON neutron.* TO 'neutrondbadmin'@'%';"</programlisting>
-<para>Create a password for the user "neutrondbadmin".</para>
-<programlisting>mysql -uroot -pmygreatsecret -e "SET PASSWORD FOR 'neutrondbadmin'@'%' = PASSWORD('neutronsecret');"</programlisting>
+<programlisting>mysql -uroot -pmygreatsecret -e "GRANT ALL PRIVILEGES ON neutron.* TO 'neutrondbadmin'@'%' IDENTIFIED BY 'neutronsecret';"</programlisting>
 <para>Create a database named cinder.</para>
 <programlisting>mysql -uroot -pmygreatsecret -e 'CREATE DATABASE cinder;'</programlisting>
-<para>Create a user named cinderdbadmin.</para>
-<programlisting>mysql -uroot -pmygreatsecret -e 'CREATE USER cinderdbadmin;'</programlisting>
 <para>Grant all privileges for cinderdbadmin on the database "cinder".</para>
-<programlisting>mysql -uroot -pmygreatsecret -e "GRANT ALL PRIVILEGES ON cinder.* TO 'cinderdbadmin'@'%';"</programlisting>
-<para>Create a password for the user "cinderdbadmin".</para>
-<programlisting>mysql -uroot -pmygreatsecret -e "SET PASSWORD FOR 'cinderdbadmin'@'%' = PASSWORD('cindersecret');"</programlisting>
+<programlisting>mysql -uroot -pmygreatsecret -e "GRANT ALL PRIVILEGES ON cinder.* TO 'cinderdbadmin'@'%' IDENTIFIED BY 'cindersecret';"</programlisting>
 </section>
 </section>
 
