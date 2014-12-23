@@ -1,6 +1,12 @@
 #!/bin/bash
-# Copyrights Mr. Murthy. Free software
-# Changes by ~eternaltyro. Experimental. Use with caution
+# Copyrights (c) Murthyraju. Free software
+# Changes by ~eternaltyro. Experimental. Use with caution.
+
+# -- Requisites -- #
+# pdflatex - apt-get install texlive-latex-base
+# dblatex - apt-get install dblatex
+# pdftk - apt-get install pdftk
+# -- Requisites -- #
 
 # Build the main matter for the book
 function build_main()
