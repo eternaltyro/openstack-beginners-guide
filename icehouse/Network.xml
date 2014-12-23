@@ -58,7 +58,7 @@
 		</programlisting>
 		<para>Now you can launch instances in network 'N1' and they will have IP addresses in the range defined by ‘subnetone’.</para>
 		<para>The public IP network or the External network can be created using the following command</para>
-		<programlisting>neutron net-create Extnet --provider:network_type flat --provider:physical_network External --router:external True --shared True</programlisting>
+		<programlisting>neutron net-create Extnet --provider:network_type flat --provider:physical_network External --router:external True --shared</programlisting>
 		<para>The output would be like</para>
 		<programlisting>
 +---------------------------+--------------------------------------+

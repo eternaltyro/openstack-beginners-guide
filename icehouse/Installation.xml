@@ -25,13 +25,13 @@
 </row>
 <row>
 <entry>Network Interfaces</entry>
-<entry>eth0 - Public N/W, eth1 - Private N/W</entry>
-<entry>eth0 - Public N/W, eth1 - Private N/W</entry>
-<entry>eth0 - Public N/W</entry>
+<entry>eth0 - Management N/W, eth1 - Data N/W, eth2 - External N/W</entry>
+<entry>eth0 - Management N/W, eth1 - Data N/W</entry>
+<entry>eth0 - Management N/W</entry>
 </row>
 <row>
 <entry>IP addresses</entry>
-<entry>eth0 - 10.10.10.2, eth1 - 192.168.3.2</entry>
+<entry>eth0 - 10.10.10.2, eth1 - 192.168.3.2, eth2- 192.168.100.2</entry>
 <entry>eth0 - 10.10.10.3, eth1 - 192.168.3.3</entry>
 <entry>eth0 - 10.10.10.4</entry>
 </row>
@@ -115,6 +115,13 @@ iface eth1 inet static
 		netmask 255.255.255.0
 		network 192.168.3.0
 		broadcast 192.168.3.255
+		
+auto eth2 
+iface eth2 inet static
+		address 192.168.100.2
+		netmask 255.255.255.0
+		network 192.168.100.0
+		broadcast 192.168.100.255
 </programlisting>
 <para>Restart the network now</para>
 <programlisting>/etc/init.d/networking restart</programlisting>
@@ -542,12 +549,12 @@ ovs-vsctl add-port br-ex eth2
 <para>Edit /etc/neutron/metadata_agent.ini to look like this</para>
 <programlisting>
 [DEFAULT]
-auth_url = http://10.0.0.1:5000/v2.0
+auth_url = http://10.10.10.2:5000/v2.0
 auth_region = RegionOne
 admin_tenant_name = service
 admin_user = neutron
 admin_password = neutron
-metadata_proxy_shared_secret = metadata_pass
+metadata_proxy_shared_secret = openstack
 </programlisting>
 <para>Edit /etc/neutron/dhcp_agent.ini to look like this</para>
 <programlisting>
@@ -896,7 +903,7 @@ paste.filter_factory = keystoneclient.middleware.auth_token:filter_factory
 delay_auth_decision = true
 # auth_* settings refer to the Keystone server
 auth_protocol = http
-auth_host = controller
+auth_host = 10.10.10.2
 auth_port = 35357
 # the service tenant and swift username and password created in Keystone
 admin_tenant_name = service
@@ -1116,7 +1123,7 @@ apt-get install openstack-dashboard
 </programlisting>
 <para>Restart apache with the following command:</para>
 <programlisting>service apache2 restart</programlisting>
-<para>In a browser enter the machine's IP address on which the dashboard is installed and you should see the OpenStack Dashboard login prompt. Login with username as 'admin' and password as 'admin'. From the dashboard, you can create keypairs, create/edit security groups, raise new instances, attach volumes etc. which is explained in "OpenStack Dashboard" chapter.</para>
+<para>In a browser enter the URL "http://10.10.10.2/horizon" on which the dashboard is installed and you should see the OpenStack Dashboard login prompt. Login with username as 'admin' and password as 'admin'. From the dashboard, you can create keypairs, create/edit security groups, raise new instances, attach volumes etc. which is explained in "OpenStack Dashboard" chapter.</para>
 </section>
 </section>
 
@@ -1326,7 +1333,6 @@ ovs-vsctl add-port br-eth1 eth1
 </programlisting>
 <para>Restart Neutron OpenvSwitch agent</para>
 <programlisting>service neutron-plugin-openvswitch-agent restart</programlisting>
-<para>TODO "Neutron agent-list"</para>
 </section>
 </section>
 </section>
@@ -1410,6 +1416,6 @@ aa362fd9-7c28-480b-845c-85a5c38ccd86 centoscli     qcow2    ovf       1611530240
 
 <section xml:id="Dashboard-d1e1208">
 <title>OpenStack Dashboard</title>
-<para>Start a browser and type the ip address of Server1 i.e, http://10.10.10.2. You should see the dashboard login screen. Login with the credentials username - admin and password - admin to manage the OpenStack setup.</para>
+<para>Start a browser and type the URL i.e, http://10.10.10.2/horizon. You should see the dashboard login screen. Login with the credentials username - admin and password - admin to manage the OpenStack setup.</para>
 </section>
 </chapter>
